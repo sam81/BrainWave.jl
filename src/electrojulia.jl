@@ -1,7 +1,8 @@
 #module electrojulia
 
 #export segment
-
+using PyCall
+@pyimport scipy.signal as scisig
 function averageAverages(aveList, nSegments)
     ## """
     ## Perform a weighted average of a list of averages. The weight of
@@ -101,9 +102,9 @@ function baselineCorrect(rec, baselineStart, preDur, sampRate)
     ## >>> baseline_correct(rec=rec, baseline_start=-0.15, pre_dur=0.2, samp_rate=512)
 
     eventList = collect(keys(rec))
-    epochStartSample = int(round(preDur*sampRate))
+    epochStartSample = int(round(preDur*sampRate))+1
     baselineStartSample = int(epochStartSample - abs(round(baselineStart*sampRate)))
-
+    #print(baselineStartSample, " ", epochStartSample, "\n")
     
     for i=1:length(eventList) #for each event
         for j=1:size(rec[eventList[i]])[3] #for each epoch
@@ -226,6 +227,61 @@ function findArtefactThresh(rec, thresh, channels)
     
 end
 
+function getSpectrum(sig, sampRate, window, powerOfTwo)
+    ## """
+    
+    ## Parameters
+    ## ----------
+
+    ## Returns
+    ## ----------
+
+    ## Examples
+    ## ----------
+    ## """
+    n = length(sig)
+    if powerOfTwo == true
+        nfft = 2^nextPowTwo(n)
+    else
+        nfft = n
+    end
+    if window != "none"
+        if window == "hamming"
+             w = scisig.hamming(n)
+        elseif window == "hanning"
+             w = scisig.hanning(n)
+        elseif window == "blackman"
+             w = scisig.blackman(n)
+        elseif window == "bartlett"
+             w = scisig.bartlett(n)
+        end
+        sig = sig*w
+    end
+
+    p = fft(sig)#, nfft) # take the fourier transform
+
+    nUniquePts = ceil((nfft+1)/2)
+    p = p[1:nUniquePts]
+    p = abs(p)
+    p = p / sampRate  # scale by the number of points so that
+    # the magnitude does not depend on the length 
+    # of the signal or on its sampling frequency  
+    p = p.^2  # square it to get the power 
+
+    # multiply by two (see technical document for details)
+    # odd nfft excludes Nyquist point
+    if nfft % 2 > 0 # we've got odd number of points fft
+         p[1:length(p)] = p[1:length(p)] * 2
+    else
+        p[1:(length(p)-1)] = p[1:length(p) - 1] * 2 # we've got even number of points fft
+    end
+
+    freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
+    x = (ASCIIString => Array{Float64,1})[]
+    x["freq"] = freq_array; x["mag"] = p
+    return x
+end
+
 
 function mergeEventTableCodes(eventTable, trigList, newTrig)
     ## """
@@ -252,6 +308,22 @@ function mergeEventTableCodes(eventTable, trigList, newTrig)
     ## end
     eventTable["code"][findin(eventTable["code"], trigList)] = newTrig
     return
+end
+
+function nextPowTwo(x)
+    ## """
+    
+    ## Parameters
+    ## ----------
+
+    ## Returns
+    ## ----------
+
+    ## Examples
+    ## ----------
+    ## """
+    out = int(ceil(log2(x)))
+    return out
 end
 
 function removeEpochs(rec, toRemove)
@@ -291,14 +363,14 @@ function removeSpuriousTriggers(eventTable, sentTrigs, minTrigDur)
     recTrigs = recTrigs[allowedIdx]
 
     durCondition = recTrigsDur .>= minTrigDur
-    recTrigs = recTrigs[]
+    recTrigs = recTrigs[durCondition]
     recTrigsStart = recTrigsStart[durCondition]
     recTrigsDur = recTrigsDur[durCondition]
 
     if recTrigs == sentTrigs
-        match_found = True
+        match_found = true
     else
-        match_found = False
+        match_found = false
     end
 
 
@@ -306,7 +378,7 @@ function removeSpuriousTriggers(eventTable, sentTrigs, minTrigDur)
     eventTable["dur"] = recTrigsDur
     eventTable["idx"] = recTrigsStart
 
-    resInfo = (UTF8String => Array{Any,1})[]
+    resInfo = (UTF8String => Any)[]
     resInfo["match"] = match_found
     resInfo["lenSent"] = length(sentTrigs)
     resInfo["lenFound"] = length(recTrigs)
@@ -365,6 +437,7 @@ function segment(rec, eventTable, epochStart, epochEnd, sampRate, eventsList=Non
     if eventsLabelsList == None
         eventsLabelsList = UTF8String[string(eventsList[i]) for i=1:length(eventsList)]
         end
+        
 
     epochStartSample = int(round(epochStart*sampRate))
     epochEndSample = int(round(epochEnd*sampRate))
@@ -373,6 +446,7 @@ function segment(rec, eventTable, epochStart, epochEnd, sampRate, eventsList=Non
     segs = (UTF8String => Array{Float32,3})[]
     for i=1:length(eventsList)
         idx = trigs_pos[trigs .== eventsList[i]]
+        
         segs[eventsLabelsList[i]] = zeros(Float32, size(rec)[1], nSamples, length(idx))
         for j=1:length(idx)
             thisStartPnt = (idx[j]+epochStartSample)
