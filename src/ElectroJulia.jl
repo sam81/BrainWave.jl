@@ -1,7 +1,10 @@
-#module electrojulia
+#module ElectroJulia
 
 #export segment
+using DataFrames
+using Distributions
 using PyCall
+#pyinitialize("python3")
 @pyimport scipy.signal as scisig
 function averageAverages(aveList, nSegments)
     ## """
@@ -75,7 +78,7 @@ function averageEpochs(rec)
     return ave, nSegs
 end
 
-function baselineCorrect(rec, baselineStart, preDur, sampRate)
+function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Int)
     
     ## Perform baseline correction by subtracting the average pre-event
     ## voltage from each channel of a segmented recording.
@@ -117,7 +120,7 @@ function baselineCorrect(rec, baselineStart, preDur, sampRate)
     
 end
 
-function chainSegments(rec, nChunks, sampRate, startTime, endTime, baselineDur)
+function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTime::Real, baselineDur::Real)
     """
     Take a dictionary containing in each key a list of segments, and chain these segments
     into chunks of length nChunks
@@ -126,7 +129,7 @@ function chainSegments(rec, nChunks, sampRate, startTime, endTime, baselineDur)
     """
     baselinePnts = round(baselineDur * sampRate)
     startPnt = int(round(startTime*sampRate) + baselinePnts) 
-    endPnt = int(round(endTime*sampRate) + baselinePnts) 
+    endPnt = int(round(endTime*sampRate) + baselinePnts) - 1
     chunkSize = ((endPnt - startPnt)+1)
     sweepSize = chunkSize * nChunks
     nReps = (UTF8String => Array{Int,1})[]
@@ -180,6 +183,84 @@ function deleteSlice3D(x, toRemove)
     return y
 end
 
+function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::Int, cutoffs, transitionWidth::Real)
+    ## """
+    
+    ## Parameters
+    ## ----------
+
+    ## Returns
+    ## ----------
+
+    ## Examples
+    ## ----------
+    ## """
+       
+    if filterType == "lowpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f = [0, f3, f4, 1]
+        m = [1, 1, 0.00003, 0]
+    elseif filterType == "highpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f = [0, f1, f2, 0.999999, 1] #high pass
+        m = [0, 0.00003, 1, 1, 0]
+    elseif filterType == "bandpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f3 = cutoffs[2]
+        f4 = cutoffs[2] * (1+transitionWidth)
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f3 = (f3*2) / sampRate
+        f4 = (f4*2) / sampRate
+        f = [0, f1, f2, ((f2+f3)/2), f3, f4, 1]
+        m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
+    end
+
+    b = scisig.firwin2(nTaps,f,m)
+
+    nChannels = size(rec)[1]
+    if channels == None
+        channels = [1:nChannels]
+    end
+   
+    for i=1:nChannels
+        if contains(channels,i) == true
+            rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:])[2]), b, "same")
+            rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:])[2]),1), b, "same"), 1)
+        end
+    end
+    return rec
+end
+
+function _centered(arr, newsize)
+    # Return the center newsize portion of the array.
+    currsize = size(arr)[1]
+    startind = div((currsize - newsize), 2) + 1
+    endind = startind + newsize -1 #check indexing is the same pyth julia?
+    return arr[startind:endind]
+end
+
+function fftconvolve(x, y, mode)
+    s1 = size(x)[1]#check if array has two dim?
+    s2 = size(y)[1]
+    convArray = conv(x,y)
+    if mode == "full"
+        return convArray
+    elseif mode == "same"
+        return _centered(convArray, s1)
+    elseif mode == "valid"
+        return _centered(convArray, abs(s1 - s2) + 1)
+    end
+end
+    
+
 function findArtefactThresh(rec, thresh, channels)
     ## """
     ## Find epochs with voltage values exceeding a given threshold.
@@ -227,7 +308,83 @@ function findArtefactThresh(rec, thresh, channels)
     
 end
 
-function getSpectrum(sig, sampRate, window, powerOfTwo)
+function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
+    ##"""
+    ##derived from get_F_Ratios2
+    ##"""
+    cnds = collect(keys(ffts))
+    fftVals = (UTF8String => Any)[]
+    fRatio = (UTF8String => Any)[]
+    dfNum = 2
+    dfDenom = 2*(nSideComp*2) -1
+    for cnd in cnds
+        fRatio[cnd] = (UTF8String => Array{Float64, 1})[]
+        fftVals[cnd] = (UTF8String => Array{Float64, 1})[]
+        fRatio[cnd]["F"] = []
+        fRatio[cnd]["pval"] = []
+        fftVals[cnd]["sigPow"] = []
+        fftVals[cnd]["noisePow"] = []
+        for c=1:length(compIdx)
+            sideBands = getNoiseSidebands(compIdx, nSideComp, nExcludedComp, ffts[cnd]["mag"], otherExclude)
+            noisePow = mean(sideBands[c])
+            sigPow = ffts[cnd]["mag"][compIdx[c]]
+            thisF =  sigPow/ noisePow
+            fftVals[cnd]["sigPow"] = vcat(fftVals[cnd]["sigPow"], sigPow)
+            fftVals[cnd]["noisePow"] = vcat(fftVals[cnd]["noisePow"], noisePow)
+            fRatio[cnd]["F"] = vcat(fRatio[cnd]["F"], thisF)
+            fRatio[cnd]["pval"] = vcat(fRatio[cnd]["pval"], pdf(FDist(dfNum, dfDenom), thisF))
+        end
+    end
+    return fftVals, fRatio
+end
+
+function getNoiseSidebands(components, nCompSide, nExcludeSide, fftArray, otherExclude)
+    #"""
+    #the 2 has the possibility to exclude extra components, useful for distortion products
+    #"""
+    #components: a list containing the indexes of the target components
+    #nCompSide: number of components used for each side band
+    #n_exclude_side: number of components adjacent to to the target components to exclude
+    #fft_array: array containing the fft values
+    idxProtect = []; idxProtect = vcat(idxProtect, components)
+    if otherExclude != None
+        idxProtect = vcat(idxProtect, otherExclude)
+    end
+    for i=1:length(nExcludeSide)
+        idxProtect = vcat(idxProtect, components + (i+1))
+        idxProtect = vcat(idxProtect, components - (i+1))
+    end
+    #idxProtect = sorted(idxProtect)
+    #print(idxProtect)
+
+    noiseBands = []
+    for i=1:length(components)
+        loSide = []
+        hiSide = []
+        counter = 1
+        while length(hiSide) < nCompSide
+            currIdx = components[i] + nExcludeSide + counter
+            if contains(idxProtect, currIdx) == false
+                hiSide = vcat(hiSide, fftArray[currIdx])
+            end
+            counter = counter + 1
+        end
+        counter = 1
+        while length(loSide) < nCompSide
+            currIdx = components[i] - nExcludeSide - counter
+            if contains(idxProtect, currIdx) == false
+                loSide = vcat(loSide, fftArray[currIdx])
+            end
+            counter = counter + 1
+        end
+        noiseBands = vcat(noiseBands, loSide+hiSide)
+    end
+        
+    return noiseBands
+end
+                              
+
+function getSpectrum(sig, sampRate::Int, window::String, powerOfTwo::Bool)
     ## """
     
     ## Parameters
@@ -270,10 +427,10 @@ function getSpectrum(sig, sampRate, window, powerOfTwo)
 
     # multiply by two (see technical document for details)
     # odd nfft excludes Nyquist point
-    if nfft % 2 > 0 # we've got odd number of points fft
+    if nfft % 2 > 0 # we"ve got odd number of points fft
          p[1:length(p)] = p[1:length(p)] * 2
     else
-        p[1:(length(p)-1)] = p[1:length(p) - 1] * 2 # we've got even number of points fft
+        p[1:(length(p)-1)] = p[1:length(p) - 1] * 2 # we"ve got even number of points fft
     end
 
     freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
@@ -283,7 +440,7 @@ function getSpectrum(sig, sampRate, window, powerOfTwo)
 end
 
 
-function mergeEventTableCodes(eventTable, trigList, newTrig)
+function mergeEventTableCodes(eventTable::Dict{String,Any}, trigList, newTrig::Int)
     ## """
     ## Substitute the event table triggers listed in trig_list
     ## with new_trig
@@ -310,7 +467,7 @@ function mergeEventTableCodes(eventTable, trigList, newTrig)
     return
 end
 
-function nextPowTwo(x)
+function nextPowTwo(x::Real)
     ## """
     
     ## Parameters
@@ -351,7 +508,7 @@ function removeEpochs(rec, toRemove)
     return rec
 end
 
-function removeSpuriousTriggers(eventTable, sentTrigs, minTrigDur)
+function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{Int}, minTrigDur::Real)
     recTrigs = eventTable["code"]
     recTrigsStart = eventTable["idx"]
     recTrigsDur = eventTable["dur"]
@@ -386,7 +543,7 @@ function removeSpuriousTriggers(eventTable, sentTrigs, minTrigDur)
     return resInfo
 end
 
-function rerefCnt(rec, refChan, channels=None)
+function rerefCnt(rec, refChan::Int, channels)
     ## """
     ## Rereference channels in a continuous recording.
 
@@ -426,7 +583,71 @@ function rerefCnt(rec, refChan, channels=None)
     return
 end
 
-function segment(rec, eventTable, epochStart, epochEnd, sampRate, eventsList=None, eventsLabelsList=None)
+function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrigs, cndsLabels, nCleanByBlock, nRawByBlock)
+    ## """
+    
+    ## Parameters
+    ## ----------
+
+    ## Returns
+    ## ----------
+
+    ## Examples
+    ## ----------
+    ## """
+    ## #cnds = list(FRatio.keys())
+    
+    nRaw = (UTF8String => Int64)[]
+    nClean = (UTF8String => Int64)[]
+    for cnd in cndsTrigs
+        nRaw[cnd] = 0
+        nClean[cnd] = 0
+        for blk=1:length(nCleanByBlock)
+            nRaw[cnd] = nRaw[cnd] + nRawByBlock[blk][cnd]
+            nClean[cnd] = nClean[cnd] + nCleanByBlock[blk][cnd]
+        end
+    end
+               
+    subjVec = (UTF8String)[]
+    compVec = (Int64)[]
+    conditionVec = (UTF8String)[]
+    nRawVec = (Int64)[]
+    nCleanVec = (Int64)[]
+    FRatioVec = (Float64)[]
+    sigPowVec = (Float64)[]
+    noisePowVec = (Float64)[]
+    pValVec = (Float64)[]
+    #percRej = (Array{Float64,1})[]
+            
+    for i=1:length(cndsTrigs)
+        thisN = length(FRatio[cndsTrigs[i]]["F"])
+        subjVec = vcat(subjVec, [subj for j=1:thisN])
+        conditionVec = vcat(conditionVec, [cndsLabels[i] for j=1:thisN])
+        compVec = vcat(compVec, [1:thisN])
+        sigPowVec = vcat(sigPowVec, fftValues[cndsTrigs[i]]["sigPow"][:])
+        noisePowVec = vcat(noisePowVec, fftValues[cndsTrigs[i]]["noisePow"][:])
+        pValVec = vcat(pValVec, FRatio[cndsTrigs[i]]["pval"][:])
+        FRatioVec = vcat(FRatioVec, FRatio[cndsTrigs[i]]["F"][:])
+        nRawVec = vcat(nRawVec, [nRaw[cndsTrigs[i]] for j=1:thisN])
+        nCleanVec = vcat(nCleanVec, [nClean[cndsTrigs[i]] for j=1:thisN])
+    end
+                
+    datsFrame = DataFrame({"subj" => subjVec,
+            "condition" => conditionVec,
+            "comp" => compVec,
+            "fRatio"=> FRatioVec,
+            "pval" => pValVec,
+            "sigPow" => sigPowVec,
+            "noisePow" => noisePowVec,
+            "nRaw" => nRawVec,
+            "nClean" => nCleanVec})
+            
+            datsFrame["percRej"] = 100-((float(datsFrame["nClean"]) ./ float(datsFrame["nRaw"])) * 100)
+            #percRej = (datsFrame["nClean"] ./ datsFrame["nRaw"]) 
+            writetable(fileName, datsFrame, separator=';')
+end
+
+function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Int, eventsList=None, eventsLabelsList=None)
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
@@ -440,7 +661,7 @@ function segment(rec, eventTable, epochStart, epochEnd, sampRate, eventsList=Non
         
 
     epochStartSample = int(round(epochStart*sampRate))
-    epochEndSample = int(round(epochEnd*sampRate))
+    epochEndSample = int(round(epochEnd*sampRate)) - 1
 
     nSamples = epochEndSample - epochStartSample + 1
     segs = (UTF8String => Array{Float32,3})[]
@@ -454,10 +675,10 @@ function segment(rec, eventTable, epochStart, epochEnd, sampRate, eventsList=Non
             thisStopPnt = (idx[j]+epochEndSample)
             if thisStartPnt < 0 || thisStopPnt > size(rec)[2]
                 if thisStartPnt < 0
-                    print(idx[j], " Epoch starts before start of recording. Skipping")
+                    print(idx[j], " Epoch starts before start of recording. \n")
                 end
                 if thisStopPnt > size(rec)[2]#rec.shape[1]
-                    print(idx[j], " Epoch ends after end of recording. Skipping")
+                    print(idx[j], " Epoch ends after end of recording. \n")
                 end
             
             else
@@ -475,5 +696,23 @@ function segment(rec, eventTable, epochStart, epochEnd, sampRate, eventsList=Non
         
 end
 
+
+function combineChained(dList)
+
+    cnds = collect(keys(dList[1])) 
+    cmb = (String => Array{Float32, 2})[]
+    for cnd in cnds
+        for i=1:length(dList)
+            if i == 1
+                cmb[cnd] = deepcopy(dList[1][cnd])
+            else
+                cmb[cnd] = cmb[cnd] + dList[i][cnd]
+            end
+        end
+        cmb[cnd] = cmb[cnd] ./ length(dList)
+    end
+            
+    return cmb
+end
 
 #end
