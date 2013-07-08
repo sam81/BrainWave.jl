@@ -117,6 +117,7 @@ function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Int)
             end
         end
     end
+
     
 end
 
@@ -291,7 +292,9 @@ function findArtefactThresh(rec, thresh, channels)
         for j=1:size(rec[eventList[i]])[3]
             for k=1:length(channels) #size(rec[eventList[i]])[1]
                 thisChan = channels[k]
-                if (max(rec[eventList[i]][thisChan,:,j]) > thresh[k] || min(rec[eventList[i]][k,:,j]) < -thresh[k])
+                if (max(rec[eventList[i]][thisChan,:,j]) > thresh[k] || min(rec[eventList[i]][thisChan,:,j]) < -thresh[k]) == true
+                    #println(thresh[k])
+                    #println(min(rec[eventList[i]][k,:,j]))
                     segsToReject[eventList[i]] = vcat(segsToReject[eventList[i]], j)
                 end
             end
@@ -569,7 +572,7 @@ function rerefCnt(rec, refChan::Int, channels)
         nChannels = size(rec)[1]
         channels = [1:nChannels]
     end
-    
+
     for i=1:length(channels)
         if channels[i] != refChan
             rec[channels[i],:] = rec[channels[i],:] - rec[refChan,:]
