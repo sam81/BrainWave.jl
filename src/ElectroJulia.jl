@@ -26,7 +26,7 @@ function averageAverages(aveList, nSegments)
     ## ----------
     ## """
     eventList = collect(keys(aveList[1]))
-    weightedAve = (UTF8String => Array{Float32,2})[]
+    weightedAve = (UTF8String => Array{eltype(aveList[1][eventList[1]]),2})[]
     nSegsSum = (UTF8String => Int)[]
     for i=1:length(eventList)
         event = eventList[i]
@@ -38,7 +38,7 @@ function averageAverages(aveList, nSegments)
 
     for i=1:length(eventList)
         event = eventList[i]
-        weightedAve[event] = zeros(size(aveList[1][event]))
+        weightedAve[event] = zeros(eltype(aveList[1][eventList[1]]), size(aveList[1][event]))
         for j=1:length(aveList)
             weightedAve[event] = weightedAve[event] + aveList[j][event] * (nSegments[j][event]/nSegsSum[event])
         end
@@ -69,7 +69,7 @@ function averageEpochs(rec)
     ## """
     
     eventList = collect(keys(rec))
-    ave = (UTF8String => Array{Float32,2})[]
+    ave = (UTF8String => Array{eltype(rec[eventList[1]]),2})[]
     nSegs = (UTF8String => Int)[]
     for i=1:length(eventList)
         nSegs[eventList[i]] = size(rec[eventList[i]])[3]
@@ -105,9 +105,8 @@ function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Int)
     ## >>> baseline_correct(rec=rec, baseline_start=-0.15, pre_dur=0.2, samp_rate=512)
 
     eventList = collect(keys(rec))
-    epochStartSample = int(round(preDur*sampRate))+1
-    baselineStartSample = int(epochStartSample - abs(round(baselineStart*sampRate)))
-    #print(baselineStartSample, " ", epochStartSample, "\n")
+    epochStartSample = int(round(preDur*sampRate))
+    baselineStartSample = int((epochStartSample+1) - abs(round(baselineStart*sampRate)))
     
     for i=1:length(eventList) #for each event
         for j=1:size(rec[eventList[i]])[3] #for each epoch
@@ -135,13 +134,13 @@ function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTim
     sweepSize = chunkSize * nChunks
     nReps = (UTF8String => Array{Int,1})[]
     eventList = collect(keys(rec))
-    eegChained = (UTF8String => Array{Float32,2})[]
-    fromeegChainedAve = (UTF8String => Array{Float32,2})[]
+    eegChained = (UTF8String => Array{eltype(rec[eventList[1]]),2})[]
+    fromeegChainedAve = (UTF8String => Array{eltype(rec[eventList[1]]),2})[]
     for i=1:length(eventList)
         currCode = eventList[i]
-        eegChained[currCode] = zeros(size(rec[currCode])[1], sweepSize)  #two-dimensional array of zeros
+        eegChained[currCode] = zeros(eltype(rec[eventList[1]]), size(rec[currCode])[1], sweepSize)  #two-dimensional array of zeros
         #fromeegChainedAve[currCode] = zeros(size(rec[currCode])[1], chunkSize)
-        nReps[currCode] = zeros(nChunks)
+        nReps[currCode] = zeros(Int, nChunks)
         p = 1
         k = 1
         while k < size(rec[currCode])[3]
@@ -224,8 +223,9 @@ function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::In
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = scisig.firwin2(nTaps,f,m)
-
+    b = float32(scisig.firwin2(nTaps,f,m))
+    #println(typeof(rec[1,:]))
+    #println(typeof(b))
     nChannels = size(rec)[1]
     if channels == None
         channels = [1:nChannels]
@@ -667,11 +667,11 @@ function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd:
     epochEndSample = int(round(epochEnd*sampRate)) - 1
 
     nSamples = epochEndSample - epochStartSample + 1
-    segs = (UTF8String => Array{Float32,3})[]
+    segs = (UTF8String => Array{eltype(rec),3})[]
     for i=1:length(eventsList)
         idx = trigs_pos[trigs .== eventsList[i]]
         
-        segs[eventsLabelsList[i]] = zeros(Float32, size(rec)[1], nSamples, length(idx))
+        segs[eventsLabelsList[i]] = zeros(eltype(rec), size(rec)[1], nSamples, length(idx))
         for j=1:length(idx)
             thisStartPnt = (idx[j]+epochStartSample)
             #print(thisStartPnt)
