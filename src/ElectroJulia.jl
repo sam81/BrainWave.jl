@@ -1,6 +1,7 @@
-#module ElectroJulia
+module ElectroJulia
 
-#export segment
+export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, saveFRatios, segment, combineChained
+#segment
 using DataFrames
 using Distributions
 using PyCall
@@ -26,8 +27,8 @@ function averageAverages(aveList, nSegments)
     ## ----------
     ## """
     eventList = collect(keys(aveList[1]))
-    weightedAve = (UTF8String => Array{eltype(aveList[1][eventList[1]]),2})[]
-    nSegsSum = (UTF8String => Int)[]
+    weightedAve = (String => Array{eltype(aveList[1][eventList[1]]),2})[]
+    nSegsSum = (String => Int)[]
     for i=1:length(eventList)
         event = eventList[i]
         nSegsSum[event] = 0
@@ -69,8 +70,8 @@ function averageEpochs(rec)
     ## """
     
     eventList = collect(keys(rec))
-    ave = (UTF8String => Array{eltype(rec[eventList[1]]),2})[]
-    nSegs = (UTF8String => Int)[]
+    ave = (String => Array{eltype(rec[eventList[1]]),2})[]
+    nSegs = (String => Int)[]
     for i=1:length(eventList)
         nSegs[eventList[i]] = size(rec[eventList[i]])[3]
         ave[eventList[i]] = mean(rec[eventList[i]], 3)[:,:,1]
@@ -121,21 +122,21 @@ function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Int)
 end
 
 function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTime::Real, baselineDur::Real)
-    """
-    Take a dictionary containing in each key a list of segments, and chain these segments
-    into chunks of length nChunks
-    baselineDur is for determining what is the zero point
-    startTime and endTime are given with reference to the zero point
-    """
+    ## """
+    ## Take a dictionary containing in each key a list of segments, and chain these segments
+    ## into chunks of length nChunks
+    ## baselineDur is for determining what is the zero point
+    ## startTime and endTime are given with reference to the zero point
+    ## """
     baselinePnts = round(baselineDur * sampRate)
-    startPnt = int(round(startTime*sampRate) + baselinePnts) 
-    endPnt = int(round(endTime*sampRate) + baselinePnts) - 1
+    startPnt = int(round(startTime*sampRate) + baselinePnts) +1
+    endPnt = int(round(endTime*sampRate) + baselinePnts) 
     chunkSize = ((endPnt - startPnt)+1)
     sweepSize = chunkSize * nChunks
-    nReps = (UTF8String => Array{Int,1})[]
+    nReps = (String => Array{Int,1})[]
     eventList = collect(keys(rec))
-    eegChained = (UTF8String => Array{eltype(rec[eventList[1]]),2})[]
-    fromeegChainedAve = (UTF8String => Array{eltype(rec[eventList[1]]),2})[]
+    eegChained = (String => Array{eltype(rec[eventList[1]]),2})[]
+    fromeegChainedAve = (String => Array{eltype(rec[eventList[1]]),2})[]
     for i=1:length(eventList)
         currCode = eventList[i]
         eegChained[currCode] = zeros(eltype(rec[eventList[1]]), size(rec[currCode])[1], sweepSize)  #two-dimensional array of zeros
@@ -197,10 +198,10 @@ function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::In
     ## """
        
     if filterType == "lowpass"
-        f1 = cutoffs[1] * (1-transitionWidth)
-        f2 = cutoffs[1]
-        f1 = (f1*2) / sampRate
-        f2 = (f2*2) / sampRate
+        f3 = cutoffs[1]
+        f4 = cutoffs[1] * (1+transitionWidth)
+        f3 = (f3*2) / sampRate
+        f4 = (f4*2) / sampRate
         f = [0, f3, f4, 1]
         m = [1, 1, 0.00003, 0]
     elseif filterType == "highpass"
@@ -223,9 +224,8 @@ function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::In
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = float32(scisig.firwin2(nTaps,f,m))
-    #println(typeof(rec[1,:]))
-    #println(typeof(b))
+    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+    #b = ones(Float32,nTaps)
     nChannels = size(rec)[1]
     if channels == None
         channels = [1:nChannels]
@@ -251,6 +251,7 @@ end
 function fftconvolve(x, y, mode)
     s1 = size(x)[1]#check if array has two dim?
     s2 = size(y)[1]
+    
     convArray = conv(x,y)
     if mode == "full"
         return convArray
@@ -286,7 +287,7 @@ function findArtefactThresh(rec, thresh, channels)
         return
     end
     eventList = collect(keys(rec))
-    segsToReject = (UTF8String => Array{Int,1})[]
+    segsToReject = (String => Array{Int,1})[]
     for i=1:length(eventList)
         segsToReject[eventList[i]] = []
         for j=1:size(rec[eventList[i]])[3]
@@ -316,13 +317,13 @@ function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
     ##derived from get_F_Ratios2
     ##"""
     cnds = collect(keys(ffts))
-    fftVals = (UTF8String => Any)[]
-    fRatio = (UTF8String => Any)[]
+    fftVals = (String => Any)[]
+    fRatio = (String => Any)[]
     dfNum = 2
     dfDenom = 2*(nSideComp*2) -1
     for cnd in cnds
-        fRatio[cnd] = (UTF8String => Array{Float64, 1})[]
-        fftVals[cnd] = (UTF8String => Array{Float64, 1})[]
+        fRatio[cnd] = (String => Array{Float64, 1})[]
+        fftVals[cnd] = (String => Array{Float64, 1})[]
         fRatio[cnd]["F"] = []
         fRatio[cnd]["pval"] = []
         fftVals[cnd]["sigPow"] = []
@@ -417,9 +418,9 @@ function getSpectrum(sig, sampRate::Int, window::String, powerOfTwo::Bool)
         end
         sig = sig*w
     end
-
+    #println(round(sig[1],10))
     p = fft(sig)#, nfft) # take the fourier transform
-
+    
     nUniquePts = ceil((nfft+1)/2)
     p = p[1:nUniquePts]
     p = abs(p)
@@ -431,13 +432,13 @@ function getSpectrum(sig, sampRate::Int, window::String, powerOfTwo::Bool)
     # multiply by two (see technical document for details)
     # odd nfft excludes Nyquist point
     if nfft % 2 > 0 # we"ve got odd number of points fft
-         p[1:length(p)] = p[1:length(p)] * 2
+         p[2:end] = p[2:end] * 2
     else
-        p[1:(length(p)-1)] = p[1:length(p) - 1] * 2 # we"ve got even number of points fft
+        p[2:(end-1)] = p[2:(end-1)] * 2 # we"ve got even number of points fft
     end
 
     freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
-    x = (ASCIIString => Array{Float64,1})[]
+    x = (String => Array{Float64,1})[]
     x["freq"] = freq_array; x["mag"] = p
     return x
 end
@@ -538,7 +539,7 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     eventTable["dur"] = recTrigsDur
     eventTable["idx"] = recTrigsStart
 
-    resInfo = (UTF8String => Any)[]
+    resInfo = (String => Any)[]
     resInfo["match"] = match_found
     resInfo["lenSent"] = length(sentTrigs)
     resInfo["lenFound"] = length(recTrigs)
@@ -600,8 +601,8 @@ function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrig
     ## """
     ## #cnds = list(FRatio.keys())
     
-    nRaw = (UTF8String => Int64)[]
-    nClean = (UTF8String => Int64)[]
+    nRaw = (String => Int64)[]
+    nClean = (String => Int64)[]
     for cnd in cndsTrigs
         nRaw[cnd] = 0
         nClean[cnd] = 0
@@ -611,9 +612,9 @@ function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrig
         end
     end
                
-    subjVec = (UTF8String)[]
+    subjVec = (String)[]
     compVec = (Int64)[]
-    conditionVec = (UTF8String)[]
+    conditionVec = (String)[]
     nRawVec = (Int64)[]
     nCleanVec = (Int64)[]
     FRatioVec = (Float64)[]
@@ -659,7 +660,7 @@ function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd:
     end
 
     if eventsLabelsList == None
-        eventsLabelsList = UTF8String[string(eventsList[i]) for i=1:length(eventsList)]
+        eventsLabelsList = String[string(eventsList[i]) for i=1:length(eventsList)]
         end
         
 
@@ -667,7 +668,7 @@ function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd:
     epochEndSample = int(round(epochEnd*sampRate)) - 1
 
     nSamples = epochEndSample - epochStartSample + 1
-    segs = (UTF8String => Array{eltype(rec),3})[]
+    segs = (String => Array{eltype(rec),3})[]
     for i=1:length(eventsList)
         idx = trigs_pos[trigs .== eventsList[i]]
         
@@ -690,7 +691,7 @@ function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd:
             end
         end
     end
-    nSegs = (UTF8String => Int64)[]
+    nSegs = (String => Int64)[]
     for i=1:length(eventsList) #count
         nSegs[eventsLabelsList[i]] = size(segs[eventsLabelsList[i]])[3]
     end
@@ -718,4 +719,4 @@ function combineChained(dList)
     return cmb
 end
 
-#end
+end #Module
