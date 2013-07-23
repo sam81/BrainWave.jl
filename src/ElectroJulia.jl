@@ -1,6 +1,6 @@
-module ElectroJulia
+#module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, saveFRatios, segment, combineChained
+#export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, saveFRatios, segment, combineChained
 #segment
 using DataFrames
 using Distributions
@@ -144,7 +144,7 @@ function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTim
         nReps[currCode] = zeros(Int, nChunks)
         p = 1
         k = 1
-        while k < size(rec[currCode])[3]
+        while k <= size(rec[currCode])[3]
             if p > (nChunks)
                 p = 1
             end
@@ -158,7 +158,6 @@ function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTim
             k = k+1 #k is the epoch counter
         end
     end
-
     for i=1:length(eventList)
         currCode = eventList[i]
         for p=1:nChunks
@@ -314,7 +313,7 @@ end
 
 function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
     ##"""
-    ##derived from get_F_Ratios2
+    ##
     ##"""
     cnds = collect(keys(ffts))
     fftVals = (String => Any)[]
@@ -328,8 +327,8 @@ function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
         fRatio[cnd]["pval"] = []
         fftVals[cnd]["sigPow"] = []
         fftVals[cnd]["noisePow"] = []
+        sideBands = getNoiseSidebands(compIdx, nSideComp, nExcludedComp, ffts[cnd]["mag"], otherExclude)
         for c=1:length(compIdx)
-            sideBands = getNoiseSidebands(compIdx, nSideComp, nExcludedComp, ffts[cnd]["mag"], otherExclude)
             noisePow = mean(sideBands[c])
             sigPow = ffts[cnd]["mag"][compIdx[c]]
             thisF =  sigPow/ noisePow
@@ -354,14 +353,13 @@ function getNoiseSidebands(components, nCompSide, nExcludeSide, fftArray, otherE
     if otherExclude != None
         idxProtect = vcat(idxProtect, otherExclude)
     end
-    for i=1:length(nExcludeSide)
-        idxProtect = vcat(idxProtect, components + (i+1))
-        idxProtect = vcat(idxProtect, components - (i+1))
+    for i=1:nExcludeSide
+        idxProtect = vcat(idxProtect, components + i)
+        idxProtect = vcat(idxProtect, components - i)
     end
-    #idxProtect = sorted(idxProtect)
-    #print(idxProtect)
+    idxProtect = sort(idxProtect)
 
-    noiseBands = []
+    noiseBands = (Any)[]
     for i=1:length(components)
         loSide = []
         hiSide = []
@@ -381,9 +379,10 @@ function getNoiseSidebands(components, nCompSide, nExcludeSide, fftArray, otherE
             end
             counter = counter + 1
         end
-        noiseBands = vcat(noiseBands, loSide+hiSide)
+        push!(noiseBands, vcat(loSide, hiSide))
+        #noiseBands = vcat(noiseBands, loSide+hiSide)
     end
-        
+    #println(size(noiseBands))
     return noiseBands
 end
                               
@@ -719,4 +718,4 @@ function combineChained(dList)
     return cmb
 end
 
-end #Module
+#end #Module
