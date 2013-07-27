@@ -1,6 +1,6 @@
-#module ElectroJulia
+module ElectroJulia
 
-#export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, saveFRatios, segment, combineChained
+export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, saveFRatios, segment, combineChained
 #segment
 using DataFrames
 using Distributions
@@ -171,17 +171,63 @@ function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTim
     return eegChained
 end
 
-function deleteSlice3D(x, toRemove)
-    y = similar(x, size(x)[1], size(x)[2], size(x)[3]-length(toRemove))
-    idx = 1
-    for i=1:size(x)[3]
+## function deleteSlice3D(x, toRemove)
+##     y = similar(x, size(x)[1], size(x)[2], size(x)[3]-length(toRemove))
+##     idx = 1
+##     for i=1:size(x)[3]
+##         if ~contains(toRemove, i)
+##             y[:,:,idx] = x[:,:,i]
+##             idx = idx+1
+##         end
+##     end
+##     return y
+## end
+
+function deleteSlice3D(x, toRemove, axis)
+    toKeep = (Int)[]
+    for i=1:size(x)[axis]
         if ~contains(toRemove, i)
-            y[:,:,idx] = x[:,:,i]
-            idx = idx+1
-            end
+            push!(toKeep, i)
+        end
     end
+    if axis == 1
+        y = x[toKeep,:,:]
+    elseif axis == 2
+        y = x[:,toKeep,:]
+    elseif axis == 3
+        y = x[:,:,toKeep]
+    end
+    
     return y
 end
+
+## function deleteSliceND(x, toRemove, axis)
+##     toKeep = (Int)[]
+##     for i=1:size(x)[axis]
+##         if ~contains(toRemove, i)
+##             push!(toKeep, i)
+##         end
+##     end
+##     idx = (Any)[]
+##     for i=1:length(size(x))
+##         if i == axis
+##             push!(idx, toKeep)
+##         else
+##             push!(idx, [1:size(x)[i]])
+##         end
+##     end
+                
+##     y = x[
+##     y = similar(x, size(x)[1], size(x)[2], size(x)[3]-length(toRemove))
+##     idx = 1
+##     for i=1:size(x)[3]
+##         if ~contains(toRemove, i)
+##             y[:,:,idx] = x[:,:,i]
+##             idx = idx+1
+##         end
+##     end
+##     return y
+## end
 
 function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::Int, cutoffs, transitionWidth::Real)
     ## """
@@ -506,7 +552,7 @@ function removeEpochs(rec, toRemove)
     eventList = collect(keys(rec))
     for i=1:length(eventList)
         code = eventList[i]
-        rec[code] = deleteSlice3D(rec[code], toRemove[code])
+        rec[code] = deleteSlice3D(rec[code], toRemove[code], 3)
     end
     return rec
 end
@@ -527,7 +573,12 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     recTrigsStart = recTrigsStart[durCondition]
     recTrigsDur = recTrigsDur[durCondition]
 
-    if recTrigs == sentTrigs
+    foo = zeros(Int16, size(sentTrigs)[1])
+    for i=1:size(sentTrigs)[1]
+        foo[i] = int16(sentTrigs[i])
+    end
+
+    if recTrigs == foo
         match_found = true
     else
         match_found = false
@@ -718,4 +769,4 @@ function combineChained(dList)
     return cmb
 end
 
-#end #Module
+end #Module
