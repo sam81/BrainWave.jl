@@ -5,6 +5,7 @@ export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSli
 using DataFrames
 using Distributions
 using PyCall
+#using Devectorize
 #pyinitialize("python3")
 @pyimport scipy.signal as scisig
 function averageAverages(aveList, nSegments)
@@ -79,7 +80,7 @@ function averageEpochs(rec)
     return ave, nSegs
 end
 
-function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Int)
+function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
     
     ## Perform baseline correction by subtracting the average pre-event
     ## voltage from each channel of a segmented recording.
@@ -121,7 +122,50 @@ function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Int)
     
 end
 
-function chainSegments(rec, nChunks::Int, sampRate::Int, startTime::Real, endTime::Real, baselineDur::Real)
+function baselineCorrectloop(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
+    
+    ## Perform baseline correction by subtracting the average pre-event
+    ## voltage from each channel of a segmented recording.
+
+    ## Parameters
+    ## ----------
+    ## rec: dict of 3D arrays
+    ##     The segmented recording.
+    ## baseline_start: float
+    ##     Start time of the baseline window relative to the event onset, in seconds.
+    ##     The absolute value of baseline_start cannot be greater than pre_dur.
+    ##     In practice baseline_start allows you to define a baseline window shorter
+    ##     than the time window before the experimental event (pre_dur).
+    ## pre_dur: float
+    ##     Duration of recording before the experimental event, in seconds.
+    ## samp_rate: int
+    ##     The samplig rate of the EEG recording.
+    
+    ## Examples
+    ## ----------
+    ## #baseline window has the same duration of pre_dur
+    ## >>> baseline_correct(rec=rec, baseline_start=-0.2, pre_dur=0.2, samp_rate=512)
+    ## #now with a baseline shorter than pre_dur
+    ## >>> baseline_correct(rec=rec, baseline_start=-0.15, pre_dur=0.2, samp_rate=512)
+
+    eventList = collect(keys(rec))
+    epochStartSample = int(round(preDur*sampRate))
+    baselineStartSample = int((epochStartSample+1) - abs(round(baselineStart*sampRate)))
+ 
+    
+    for i=1:length(eventList) #for each event
+        for j=1:size(rec[eventList[i]])[3] #for each epoch
+            for k=1: size(rec[eventList[i]])[1] #for each electrode
+                thisBaseline = mean(rec[eventList[i]][k,baselineStartSample:epochStartSample,j])
+                for s=1:size(rec[eventList[i]])[2] #for each sample     
+                    rec[eventList[i]][k,s,j] = rec[eventList[i]][k,s,j] - thisBaseline
+                end
+            end
+        end
+    end
+end
+
+function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real)
     ## """
     ## Take a dictionary containing in each key a list of segments, and chain these segments
     ## into chunks of length nChunks
@@ -202,7 +246,7 @@ function deleteSlice3D(x, toRemove, axis)
 end
 
 ## function deleteSliceND(x, toRemove, axis)
-##     toKeep = (Int)[]
+##     toKeep = (Integer)[]
 ##     for i=1:size(x)[axis]
 ##         if ~contains(toRemove, i)
 ##             push!(toKeep, i)
@@ -229,7 +273,7 @@ end
 ##     return y
 ## end
 
-function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::Int, cutoffs, transitionWidth::Real)
+function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::Integer, cutoffs, transitionWidth::Real)
     ## """
     
     ## Parameters
@@ -433,7 +477,7 @@ function getNoiseSidebands(components, nCompSide, nExcludeSide, fftArray, otherE
 end
                               
 
-function getSpectrum(sig, sampRate::Int, window::String, powerOfTwo::Bool)
+function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     ## """
     
     ## Parameters
@@ -489,7 +533,7 @@ function getSpectrum(sig, sampRate::Int, window::String, powerOfTwo::Bool)
 end
 
 
-function mergeEventTableCodes(eventTable::Dict{String,Any}, trigList, newTrig::Int)
+function mergeEventTableCodes(eventTable::Dict{String,Any}, trigList, newTrig::Integer)
     ## """
     ## Substitute the event table triggers listed in trig_list
     ## with new_trig
@@ -597,7 +641,7 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     return resInfo
 end
 
-function rerefCnt(rec, refChan::Int, channels)
+function rerefCnt(rec, refChan::Integer, channels)
     ## """
     ## Rereference channels in a continuous recording.
 
@@ -651,8 +695,8 @@ function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrig
     ## """
     ## #cnds = list(FRatio.keys())
     
-    nRaw = (String => Int64)[]
-    nClean = (String => Int64)[]
+    nRaw = (String => Int)[]
+    nClean = (String => Int)[]
     for cnd in cndsTrigs
         nRaw[cnd] = 0
         nClean[cnd] = 0
@@ -663,10 +707,10 @@ function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrig
     end
                
     subjVec = (String)[]
-    compVec = (Int64)[]
+    compVec = (Int)[]
     conditionVec = (String)[]
-    nRawVec = (Int64)[]
-    nCleanVec = (Int64)[]
+    nRawVec = (Int)[]
+    nCleanVec = (Int)[]
     FRatioVec = (Float64)[]
     sigPowVec = (Float64)[]
     noisePowVec = (Float64)[]
@@ -701,7 +745,7 @@ function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrig
             writetable(fileName, datsFrame, separator=';')
 end
 
-function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Int, eventsList=None, eventsLabelsList=None)
+function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer, eventsList=None, eventsLabelsList=None)
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
@@ -741,7 +785,7 @@ function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd:
             end
         end
     end
-    nSegs = (String => Int64)[]
+    nSegs = (String => Int)[]
     for i=1:length(eventsList) #count
         nSegs[eventsLabelsList[i]] = size(segs[eventsLabelsList[i]])[3]
     end
@@ -754,7 +798,7 @@ end
 function combineChained(dList)
 
     cnds = collect(keys(dList[1])) 
-    cmb = (String => Array{Float32, 2})[]
+    cmb = (String => Array{eltype(dList[1][cnds[1]]), 2})[]
     for cnd in cnds
         for i=1:length(dList)
             if i == 1
