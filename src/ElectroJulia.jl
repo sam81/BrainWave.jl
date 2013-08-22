@@ -1,6 +1,6 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, saveFRatios, segment, combineChained
+export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, segment
 #segment
 using DataFrames
 using Distributions
@@ -165,7 +165,7 @@ function baselineCorrectloop(rec, baselineStart::Real, preDur::Real, sampRate::I
     end
 end
 
-function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real)
+function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
     ## """
     ## Take a dictionary containing in each key a list of segments, and chain these segments
     ## into chunks of length nChunks
@@ -177,6 +177,21 @@ function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real
     endPnt = int(round(endTime*sampRate) + baselinePnts) 
     chunkSize = ((endPnt - startPnt)+1)
     sweepSize = chunkSize * nChunks
+
+    if window != None
+        n = chunkSize
+        w = zeros(1, n)
+        if window == "hamming"
+            w[1,:] = scisig.hamming(n)
+        elseif window == "hanning"
+            w[1,:] = scisig.hanning(n)
+        elseif window == "blackman"
+            w[1,:] = scisig.blackman(n)
+        elseif window == "bartlett"
+            w[1,:] = scisig.bartlett(n)
+        end
+    end
+    
     nReps = (String => Array{Int,1})[]
     eventList = collect(keys(rec))
     eegChained = (String => Array{eltype(rec[eventList[1]]),2})[]
@@ -207,7 +222,14 @@ function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real
         for p=1:nChunks
             idxChunkStart = ((p-1)*chunkSize)+1
             idxChunkEnd = (idxChunkStart + chunkSize)-1
-            eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] / nReps[currCode][p]
+            if window == None
+                eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] / nReps[currCode][p]
+            else
+                for chn=1:size(eegChained[currCode])[1]
+                    eegChained[currCode][chn,idxChunkStart:idxChunkEnd] = eegChained[currCode][chn,idxChunkStart:idxChunkEnd].*w / nReps[currCode][p]
+               
+                end
+            end
         end
         #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] / sum(nReps[currCode])
     end
@@ -401,11 +423,19 @@ function findArtefactThresh(rec, thresh, channels)
     
 end
 
-function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
+function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
     ##"""
     ##
     ##"""
+
     cnds = collect(keys(ffts))
+    compIdx = (Int)[]
+    for freq in freqs
+        thisIdx = find(abs(ffts[cnds[1]]["freq"] - freq) .== min(abs(ffts[cnds[1]]["freq"] - freq)))
+        append!(compIdx, thisIdx)
+    end
+    sideBandsIdx = (Int)[]
+    idxProtect = (Int)[]
     fftVals = (String => Any)[]
     fRatio = (String => Any)[]
     dfNum = 2
@@ -417,7 +447,7 @@ function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
         fRatio[cnd]["pval"] = []
         fftVals[cnd]["sigPow"] = []
         fftVals[cnd]["noisePow"] = []
-        sideBands = getNoiseSidebands(compIdx, nSideComp, nExcludedComp, ffts[cnd]["mag"], otherExclude)
+        sideBands, sideBandsIdx, idxProtect = getNoiseSidebands(freqs, nSideComp, nExcludedComp, ffts[cnd], otherExclude)
         for c=1:length(compIdx)
             noisePow = mean(sideBands[c])
             sigPow = ffts[cnd]["mag"][compIdx[c]]
@@ -428,10 +458,23 @@ function getFRatios(ffts, compIdx, nSideComp, nExcludedComp, otherExclude)
             fRatio[cnd]["pval"] = vcat(fRatio[cnd]["pval"], pdf(FDist(dfNum, dfDenom), thisF))
         end
     end
-    return fftVals, fRatio
+    minSideFreq = (FloatingPoint)[]
+    maxSideFreq = (FloatingPoint)[]
+    for c=1:length(compIdx)
+        push!(minSideFreq, ffts[cnds[1]]["freq"][min(sideBandsIdx[c])])
+        push!(maxSideFreq, ffts[cnds[1]]["freq"][max(sideBandsIdx[c])])
+    end
+    res = (String => Any)["fftVals" => fftVals,
+                          "fRatio" => fRatio,
+                          "compIdx" => compIdx,
+                          "sideBandsIdx" => sideBandsIdx,
+                          "excludedIdx"  => idxProtect,
+                          "minSideFreq" => minSideFreq,
+                          "maxSideFreq" => maxSideFreq]
+    return res
 end
 
-function getNoiseSidebands(components, nCompSide, nExcludeSide, fftArray, otherExclude)
+function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclude)
     #"""
     #the 2 has the possibility to exclude extra components, useful for distortion products
     #"""
@@ -439,41 +482,59 @@ function getNoiseSidebands(components, nCompSide, nExcludeSide, fftArray, otherE
     #nCompSide: number of components used for each side band
     #n_exclude_side: number of components adjacent to to the target components to exclude
     #fft_array: array containing the fft values
-    idxProtect = []; idxProtect = vcat(idxProtect, components)
-    if otherExclude != None
-        idxProtect = vcat(idxProtect, otherExclude)
+    compIdx = (Int)[]
+    for freq in freqs
+        thisIdx = find(abs(fftDict["freq"] - freq) .== min(abs(fftDict["freq"] - freq)))
+        append!(compIdx, thisIdx)
     end
-    for i=1:nExcludeSide
-        idxProtect = vcat(idxProtect, components + i)
-        idxProtect = vcat(idxProtect, components - i)
+    
+    idxProtect = []; idxProtect = vcat(idxProtect, compIdx)
+    if otherExclude != None
+        otherExcludeIdx = (Int)[]
+        for i=1:length(otherExclude)
+            append!(otherExcludeIdx, find(abs(fftDict["freq"] - otherExclude[i]) .== min(abs(fftDict["freq"] - otherExclude[i]))))
+        end
+        idxProtect = vcat(idxProtect, otherExcludeIdx)
+    end
+    
+    for i=1:nExcludedComp
+        idxProtect = vcat(idxProtect, compIdx + i)
+        idxProtect = vcat(idxProtect, compIdx - i)
+        for j=1:length(otherExclude)
+            push!(idxProtect, otherExcludeIdx[j] - i)
+            push!(idxProtect, otherExcludeIdx[j] + i)
+        end
     end
     idxProtect = sort(idxProtect)
 
     noiseBands = (Any)[]
-    for i=1:length(components)
-        loSide = []
-        hiSide = []
+    noiseBandsIdx = (Any)[]
+    for i=1:length(compIdx)
+        loSide = []; hiSide = []
+        loSideIdx = (Int)[]; hiSideIdx = (Int)[]
         counter = 1
         while length(hiSide) < nCompSide
-            currIdx = components[i] + nExcludeSide + counter
+            currIdx = compIdx[i] + nExcludedComp + counter
             if contains(idxProtect, currIdx) == false
-                hiSide = vcat(hiSide, fftArray[currIdx])
+                hiSide = vcat(hiSide, fftDict["mag"][currIdx])
+                push!(hiSideIdx, currIdx)
             end
             counter = counter + 1
         end
         counter = 1
         while length(loSide) < nCompSide
-            currIdx = components[i] - nExcludeSide - counter
+            currIdx = compIdx[i] - nExcludedComp - counter
             if contains(idxProtect, currIdx) == false
-                loSide = vcat(loSide, fftArray[currIdx])
+                loSide = vcat(loSide, fftDict["mag"][currIdx])
+                push!(loSideIdx, currIdx)
             end
             counter = counter + 1
         end
         push!(noiseBands, vcat(loSide, hiSide))
+        push!(noiseBandsIdx, vcat(loSideIdx, hiSideIdx))
         #noiseBands = vcat(noiseBands, loSide+hiSide)
     end
-    #println(size(noiseBands))
-    return noiseBands
+    return noiseBands, noiseBandsIdx, idxProtect
 end
                               
 
@@ -507,7 +568,6 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
         end
         sig = sig*w
     end
-    #println(round(sig[1],10))
     p = fft(sig)#, nfft) # take the fourier transform
     
     nUniquePts = ceil((nfft+1)/2)
@@ -681,69 +741,7 @@ function rerefCnt(rec, refChan::Integer, channels)
     return
 end
 
-function saveFRatios(fileName::String, subj::String, FRatio, fftValues, cndsTrigs, cndsLabels, nCleanByBlock, nRawByBlock)
-    ## """
-    
-    ## Parameters
-    ## ----------
 
-    ## Returns
-    ## ----------
-
-    ## Examples
-    ## ----------
-    ## """
-    ## #cnds = list(FRatio.keys())
-    
-    nRaw = (String => Int)[]
-    nClean = (String => Int)[]
-    for cnd in cndsTrigs
-        nRaw[cnd] = 0
-        nClean[cnd] = 0
-        for blk=1:length(nCleanByBlock)
-            nRaw[cnd] = nRaw[cnd] + nRawByBlock[blk][cnd]
-            nClean[cnd] = nClean[cnd] + nCleanByBlock[blk][cnd]
-        end
-    end
-               
-    subjVec = (String)[]
-    compVec = (Int)[]
-    conditionVec = (String)[]
-    nRawVec = (Int)[]
-    nCleanVec = (Int)[]
-    FRatioVec = (Float64)[]
-    sigPowVec = (Float64)[]
-    noisePowVec = (Float64)[]
-    pValVec = (Float64)[]
-    #percRej = (Array{Float64,1})[]
-            
-    for i=1:length(cndsTrigs)
-        thisN = length(FRatio[cndsTrigs[i]]["F"])
-        subjVec = vcat(subjVec, [subj for j=1:thisN])
-        conditionVec = vcat(conditionVec, [cndsLabels[i] for j=1:thisN])
-        compVec = vcat(compVec, [1:thisN])
-        sigPowVec = vcat(sigPowVec, fftValues[cndsTrigs[i]]["sigPow"][:])
-        noisePowVec = vcat(noisePowVec, fftValues[cndsTrigs[i]]["noisePow"][:])
-        pValVec = vcat(pValVec, FRatio[cndsTrigs[i]]["pval"][:])
-        FRatioVec = vcat(FRatioVec, FRatio[cndsTrigs[i]]["F"][:])
-        nRawVec = vcat(nRawVec, [nRaw[cndsTrigs[i]] for j=1:thisN])
-        nCleanVec = vcat(nCleanVec, [nClean[cndsTrigs[i]] for j=1:thisN])
-    end
-                
-    datsFrame = DataFrame({"subj" => subjVec,
-            "condition" => conditionVec,
-            "comp" => compVec,
-            "fRatio"=> FRatioVec,
-            "pval" => pValVec,
-            "sigPow" => sigPowVec,
-            "noisePow" => noisePowVec,
-            "nRaw" => nRawVec,
-            "nClean" => nCleanVec})
-            
-            datsFrame["percRej"] = 100-((float(datsFrame["nClean"]) ./ float(datsFrame["nRaw"])) * 100)
-            #percRej = (datsFrame["nClean"] ./ datsFrame["nRaw"]) 
-            writetable(fileName, datsFrame, separator=';')
-end
 
 function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer, eventsList=None, eventsLabelsList=None)
 
@@ -795,22 +793,6 @@ function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd:
 end
 
 
-function combineChained(dList)
 
-    cnds = collect(keys(dList[1])) 
-    cmb = (String => Array{eltype(dList[1][cnds[1]]), 2})[]
-    for cnd in cnds
-        for i=1:length(dList)
-            if i == 1
-                cmb[cnd] = deepcopy(dList[1][cnd])
-            else
-                cmb[cnd] = cmb[cnd] + dList[i][cnd]
-            end
-        end
-        cmb[cnd] = cmb[cnd] ./ length(dList)
-    end
-            
-    return cmb
-end
 
 end #Module
