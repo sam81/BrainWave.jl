@@ -252,7 +252,7 @@ end
 function deleteSlice3D(x, toRemove, axis)
     toKeep = (Int)[]
     for i=1:size(x)[axis]
-        if ~contains(toRemove, i)
+        if ~in(i, toRemove)
             push!(toKeep, i)
         end
     end
@@ -343,7 +343,7 @@ function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::In
     end
    
     for i=1:nChannels
-        if contains(channels,i) == true
+        if in(i, channels) == true
             rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:])[2]), b, "same")
             rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:])[2]),1), b, "same"), 1)
         end
@@ -515,7 +515,7 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
         counter = 1
         while length(hiSide) < nCompSide
             currIdx = compIdx[i] + nExcludedComp + counter
-            if contains(idxProtect, currIdx) == false
+            if in(currIdx, idxProtect) == false
                 hiSide = vcat(hiSide, fftDict["mag"][currIdx])
                 push!(hiSideIdx, currIdx)
             end
@@ -524,7 +524,7 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
         counter = 1
         while length(loSide) < nCompSide
             currIdx = compIdx[i] - nExcludedComp - counter
-            if contains(idxProtect, currIdx) == false
+            if in(currIdx, idxProtect) == false
                 loSide = vcat(loSide, fftDict["mag"][currIdx])
                 push!(loSideIdx, currIdx)
             end
@@ -666,8 +666,9 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     recTrigsStart = eventTable["idx"]
     recTrigsDur = eventTable["dur"]
 
-    allowedTrigs = unique(sentTrigs)
+    allowedTrigs = int16(unique(sentTrigs))
     allowedIdx = findin(recTrigs, allowedTrigs)
+ 
     recTrigsDur = recTrigsDur[allowedIdx]
     recTrigsStart = recTrigsStart[allowedIdx]
     recTrigs = recTrigs[allowedIdx]
@@ -734,7 +735,7 @@ function rerefCnt(rec, refChan::Integer, channels)
         end
     end
 
-    if contains(channels, refChan)
+    if in(refChan, channels)
      rec[refChan,:] = rec[refChan,:] - rec[refChan,:]
     end
     
