@@ -404,7 +404,7 @@ function findArtefactThresh(rec, thresh, channels)
         for j=1:size(rec[eventList[i]])[3]
             for k=1:length(channels) #size(rec[eventList[i]])[1]
                 thisChan = channels[k]
-                if (max(rec[eventList[i]][thisChan,:,j]) > thresh[k] || min(rec[eventList[i]][thisChan,:,j]) < -thresh[k]) == true
+                if (maximum(rec[eventList[i]][thisChan,:,j]) > thresh[k] || minimum(rec[eventList[i]][thisChan,:,j]) < -thresh[k]) == true
                     #println(thresh[k])
                     #println(min(rec[eventList[i]][k,:,j]))
                     segsToReject[eventList[i]] = vcat(segsToReject[eventList[i]], j)
@@ -431,7 +431,7 @@ function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
     cnds = collect(keys(ffts))
     compIdx = (Int)[]
     for freq in freqs
-        thisIdx = find(abs(ffts[cnds[1]]["freq"] - freq) .== min(abs(ffts[cnds[1]]["freq"] - freq)))
+        thisIdx = find(abs(ffts[cnds[1]]["freq"] - freq) .== minimum(abs(ffts[cnds[1]]["freq"] - freq)))
         append!(compIdx, thisIdx)
     end
     sideBandsIdx = (Int)[]
@@ -461,8 +461,8 @@ function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
     minSideFreq = (FloatingPoint)[]
     maxSideFreq = (FloatingPoint)[]
     for c=1:length(compIdx)
-        push!(minSideFreq, ffts[cnds[1]]["freq"][min(sideBandsIdx[c])])
-        push!(maxSideFreq, ffts[cnds[1]]["freq"][max(sideBandsIdx[c])])
+        push!(minSideFreq, ffts[cnds[1]]["freq"][minimum(sideBandsIdx[c])])
+        push!(maxSideFreq, ffts[cnds[1]]["freq"][maximum(sideBandsIdx[c])])
     end
     res = (String => Any)["fftVals" => fftVals,
                           "fRatio" => fRatio,
@@ -484,7 +484,7 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     #fft_array: array containing the fft values
     compIdx = (Int)[]
     for freq in freqs
-        thisIdx = find(abs(fftDict["freq"] - freq) .== min(abs(fftDict["freq"] - freq)))
+        thisIdx = find(abs(fftDict["freq"] - freq) .== minimum(abs(fftDict["freq"] - freq)))
         append!(compIdx, thisIdx)
     end
     
@@ -492,7 +492,7 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     if otherExclude != None
         otherExcludeIdx = (Int)[]
         for i=1:length(otherExclude)
-            append!(otherExcludeIdx, find(abs(fftDict["freq"] - otherExclude[i]) .== min(abs(fftDict["freq"] - otherExclude[i]))))
+            append!(otherExcludeIdx, find(abs(fftDict["freq"] - otherExclude[i]) .== minimum(abs(fftDict["freq"] - otherExclude[i]))))
         end
         idxProtect = vcat(idxProtect, otherExcludeIdx)
     end
