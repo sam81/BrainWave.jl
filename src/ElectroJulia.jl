@@ -362,7 +362,7 @@ end
 function fftconvolve(x, y, mode)
     s1 = size(x)[1]#check if array has two dim?
     s2 = size(y)[1]
-    
+    #println(typeof(x), typeof(y))
     convArray = conv(x,y)
     if mode == "full"
         return convArray
