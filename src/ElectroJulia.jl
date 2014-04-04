@@ -114,7 +114,7 @@ function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Integ
         for j=1:size(rec[eventList[i]])[3] #for each epoch
             for k=1: size(rec[eventList[i]])[1] #for each electrode
                 thisBaseline = mean(rec[eventList[i]][k,baselineStartSample:epochStartSample,j])
-                rec[eventList[i]][k,:,j] = rec[eventList[i]][k,:,j] - thisBaseline
+                rec[eventList[i]][k,:,j] = rec[eventList[i]][k,:,j] .- thisBaseline
             end
         end
     end
@@ -431,7 +431,7 @@ function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
     cnds = collect(keys(ffts))
     compIdx = (Int)[]
     for freq in freqs
-        thisIdx = find(abs(ffts[cnds[1]]["freq"] - freq) .== minimum(abs(ffts[cnds[1]]["freq"] - freq)))
+        thisIdx = find(abs(ffts[cnds[1]]["freq"] .- freq) .== minimum(abs(ffts[cnds[1]]["freq"] .- freq)))
         append!(compIdx, thisIdx)
     end
     sideBandsIdx = (Int)[]
@@ -484,7 +484,7 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     #fft_array: array containing the fft values
     compIdx = (Int)[]
     for freq in freqs
-        thisIdx = find(abs(fftDict["freq"] - freq) .== minimum(abs(fftDict["freq"] - freq)))
+        thisIdx = find(abs(fftDict["freq"] .- freq) .== minimum(abs(fftDict["freq"] .- freq)))
         append!(compIdx, thisIdx)
     end
     
@@ -492,17 +492,17 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     if otherExclude != None
         otherExcludeIdx = (Int)[]
         for i=1:length(otherExclude)
-            append!(otherExcludeIdx, find(abs(fftDict["freq"] - otherExclude[i]) .== minimum(abs(fftDict["freq"] - otherExclude[i]))))
+            append!(otherExcludeIdx, find(abs(fftDict["freq"] .- otherExclude[i]) .== minimum(abs(fftDict["freq"] .- otherExclude[i]))))
         end
         idxProtect = vcat(idxProtect, otherExcludeIdx)
     end
     
     for i=1:nExcludedComp
-        idxProtect = vcat(idxProtect, compIdx + i)
-        idxProtect = vcat(idxProtect, compIdx - i)
+        idxProtect = vcat(idxProtect, compIdx .+ i)
+        idxProtect = vcat(idxProtect, compIdx .- i)
         for j=1:length(otherExclude)
-            push!(idxProtect, otherExcludeIdx[j] - i)
-            push!(idxProtect, otherExcludeIdx[j] + i)
+            push!(idxProtect, otherExcludeIdx[j] .- i)
+            push!(idxProtect, otherExcludeIdx[j] .+ i)
         end
     end
     idxProtect = sort(idxProtect)
