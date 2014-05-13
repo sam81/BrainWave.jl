@@ -1,9 +1,10 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, segment
+export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getAcf, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, segment
 #segment
 using DataFrames
 using Distributions
+using DSP
 using PyCall
 #using Devectorize
 #pyinitialize("python3")
@@ -338,7 +339,7 @@ function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::In
     b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
     #b = ones(Float32,nTaps)
     nChannels = size(rec)[1]
-    if channels == None
+    if channels == nothing
         channels = [1:nChannels]
     end
    
@@ -420,6 +421,56 @@ function findArtefactThresh(rec, thresh, channels)
         segsToReject[eventList[i]] = unique(segsToReject[eventList[i]])
     end
     return segsToReject
+    
+end
+
+function getAcf(sig, sampRate::Real, maxLag::Real; normalize=true)
+    # Compute the autocorrelation function
+    #Arguments:
+    # sig: the signal for which the autocorrelation should be computed
+    # samprate: the sampling rate of the signal
+    # maxLag: the maximum lag (1/f) for which the autocorrelation function should be computed
+    # normalize: whether the autocorrelation should be scaled between [-1, 1]
+    #
+    #Returns
+    # acf: the autocorrelation function
+    # lags: the time lags for which the autocorrelation function was computed
+
+    ## n = length(sig)
+    ## acfArray = zeros(n*2)
+    ## acfArray[1:n] = sig
+    ## out = zeros(n)
+
+    ## maxLagPnt = int(round(maxLag*sampRate))
+    ## if maxLagPnt > n
+    ##     maxLagPnt = n
+    ## end
+
+    ## for i = 1:maxLagPnt
+    ##     out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
+    ## end
+    
+    ## lags = [1:maxLagPnt]./sampRate
+    
+    ## if normalize == true
+    ##     out = out ./ maximum(out)
+    ## end
+    ## return out, lags
+
+    n = length(sig)
+    maxLagPnt = int(round(maxLag*sampRate))
+    if maxLagPnt > n
+        maxLagPnt = n
+    end
+    out = xcorr(sig, sig)[n:n+maxLagPnt-1]
+
+    lags = [1:maxLagPnt]./sampRate
+    
+    if normalize == true
+        out = out ./ maximum(out)
+    end
+    return out, lags
+
     
 end
 
@@ -557,23 +608,24 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
         nfft = n
     end
     if window != "none"
+        w = zeros(n)
         if window == "hamming"
-             w = scisig.hamming(n)
+             w[1:end] = scisig.hamming(n)
         elseif window == "hanning"
-             w = scisig.hanning(n)
+             w[1:end] = scisig.hanning(n)
         elseif window == "blackman"
-             w = scisig.blackman(n)
+             w[1:end] = scisig.blackman(n)
         elseif window == "bartlett"
-             w = scisig.bartlett(n)
+             w[1:end] = scisig.bartlett(n)
         end
-        sig = sig*w
+        sig = sig.*w
     end
     p = fft(sig)#, nfft) # take the fourier transform
     
     nUniquePts = ceil((nfft+1)/2)
     p = p[1:nUniquePts]
     p = abs(p)
-    p = p / sampRate  # scale by the number of points so that
+    p = p ./ sampRate  # scale by the number of points so that
     # the magnitude does not depend on the length 
     # of the signal or on its sampling frequency  
     p = p.^2  # square it to get the power 
@@ -666,13 +718,17 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     recTrigsStart = eventTable["idx"]
     recTrigsDur = eventTable["dur"]
 
+    orig_len = length(recTrigs[(recTrigs .<254) & (recTrigs .>192)])
+
     allowedTrigs = int16(unique(sentTrigs))
     allowedIdx = findin(recTrigs, allowedTrigs)
- 
+    
     recTrigsDur = recTrigsDur[allowedIdx]
     recTrigsStart = recTrigsStart[allowedIdx]
     recTrigs = recTrigs[allowedIdx]
 
+    len_after_notsent_removed = length(recTrigs)
+    
     durCondition = recTrigsDur .>= minTrigDur
     recTrigs = recTrigs[durCondition]
     recTrigsStart = recTrigsStart[durCondition]
@@ -698,6 +754,8 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     resInfo["match"] = match_found
     resInfo["lenSent"] = length(sentTrigs)
     resInfo["lenFound"] = length(recTrigs)
+    #resInfo["origLength"] = orig_len
+    #resInfo["len_after_notsent_removed"] = len_after_notsent_removed
 
     return resInfo
 end
