@@ -179,17 +179,17 @@ function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real
     chunkSize = ((endPnt - startPnt)+1)
     sweepSize = chunkSize * nChunks
 
-    if window != None
+    if window != "none"
         n = chunkSize
         w = zeros(1, n)
         if window == "hamming"
-            w[1,:] = scisig.hamming(n)
+            w[1,:] = hamming(n)
         elseif window == "hanning"
-            w[1,:] = scisig.hanning(n)
+            w[1,:] = hanning(n)
         elseif window == "blackman"
-            w[1,:] = scisig.blackman(n)
+            w[1,:] = blackman(n)
         elseif window == "bartlett"
-            w[1,:] = scisig.bartlett(n)
+            w[1,:] = bartlett(n)
         end
     end
     
@@ -462,7 +462,7 @@ function getAcf(sig, sampRate::Real, maxLag::Real; normalize=true)
     if maxLagPnt > n
         maxLagPnt = n
     end
-    out = xcorr(sig, sig)[n:n+maxLagPnt-1]
+    out = xcorr(vec(sig), vec(sig))[n:n+maxLagPnt-1]
 
     lags = [1:maxLagPnt]./sampRate
     
@@ -610,13 +610,13 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     if window != "none"
         w = zeros(n)
         if window == "hamming"
-             w[1:end] = scisig.hamming(n)
+             w[1:end] = hamming(n)
         elseif window == "hanning"
-             w[1:end] = scisig.hanning(n)
+             w[1:end] = hanning(n)
         elseif window == "blackman"
-             w[1:end] = scisig.blackman(n)
+             w[1:end] = blackman(n)
         elseif window == "bartlett"
-             w[1:end] = scisig.bartlett(n)
+             w[1:end] = bartlett(n)
         end
         sig = sig.*w
     end
@@ -639,9 +639,9 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     end
 
     freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
-    x = (String => Array{Float64,1})[]
-    x["freq"] = freq_array; x["mag"] = p
-    return x
+    #x = (String => Array{Float64,1})[]
+    #x["freq"] = freq_array; x["mag"] = p
+    return p, freq_array
 end
 
 
