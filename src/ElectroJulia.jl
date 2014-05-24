@@ -625,7 +625,7 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     nUniquePts = ceil((nfft+1)/2)
     p = p[1:nUniquePts]
     p = abs(p)
-    p = p ./ sampRate  # scale by the number of points so that
+    p = p ./ n  # scale by the number of points so that
     # the magnitude does not depend on the length 
     # of the signal or on its sampling frequency  
     p = p.^2  # square it to get the power 
