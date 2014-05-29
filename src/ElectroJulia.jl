@@ -181,15 +181,14 @@ function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real
 
     if window != "none"
         n = chunkSize
-        w = zeros(1, n)
         if window == "hamming"
-            w[1,:] = hamming(n)
+            w = hamming(n)
         elseif window == "hanning"
-            w[1,:] = hanning(n)
+            w = hanning(n)
         elseif window == "blackman"
-            w[1,:] = blackman(n)
+            w = blackman(n)
         elseif window == "bartlett"
-            w[1,:] = bartlett(n)
+            w = bartlett(n)
         end
     end
     
@@ -223,11 +222,11 @@ function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real
         for p=1:nChunks
             idxChunkStart = ((p-1)*chunkSize)+1
             idxChunkEnd = (idxChunkStart + chunkSize)-1
-            if window == None
+            if window == nothing
                 eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] / nReps[currCode][p]
             else
                 for chn=1:size(eegChained[currCode])[1]
-                    eegChained[currCode][chn,idxChunkStart:idxChunkEnd] = eegChained[currCode][chn,idxChunkStart:idxChunkEnd].*w / nReps[currCode][p]
+                    eegChained[currCode][chn,idxChunkStart:idxChunkEnd] = eegChained[currCode][chn,idxChunkStart:idxChunkEnd].*w' / nReps[currCode][p]
                
                 end
             end
@@ -540,7 +539,7 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     end
     
     idxProtect = []; idxProtect = vcat(idxProtect, compIdx)
-    if otherExclude != None
+    if otherExclude != nothing
         otherExcludeIdx = (Int)[]
         for i=1:length(otherExclude)
             append!(otherExcludeIdx, find(abs(fftDict["freq"] .- otherExclude[i]) .== minimum(abs(fftDict["freq"] .- otherExclude[i]))))
@@ -608,17 +607,16 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
         nfft = n
     end
     if window != "none"
-        w = zeros(n)
         if window == "hamming"
-             w[1:end] = hamming(n)
+             w = hamming(n)
         elseif window == "hanning"
-             w[1:end] = hanning(n)
+             w = hanning(n)
         elseif window == "blackman"
-             w[1:end] = blackman(n)
+             w = blackman(n)
         elseif window == "bartlett"
-             w[1:end] = bartlett(n)
+             w = bartlett(n)
         end
-        sig = sig.*w
+        sig = sig.*w'
     end
     p = fft(sig)#, nfft) # take the fourier transform
     
@@ -760,7 +758,7 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     return resInfo
 end
 
-function rerefCnt(rec, refChan::Integer, channels)
+function rerefCnt(rec, refChan::Integer; channels=nothing)
     ## """
     ## Rereference channels in a continuous recording.
 
@@ -782,7 +780,7 @@ function rerefCnt(rec, refChan::Integer, channels)
     ## >>> reref_cnt(rec=dats, channels=[1, 2, 3], ref_channel=4)
     ## """
 
-    if channels == None
+    if channels == nothing
         nChannels = size(rec)[1]
         channels = [1:nChannels]
     end
@@ -802,15 +800,15 @@ end
 
 
 
-function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer, eventsList=None, eventsLabelsList=None)
+function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer, eventsList=nothing, eventsLabelsList=nothing)
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
-    if eventsList == None
+    if eventsList == nothing
         eventsList = unique(trigs)
     end
 
-    if eventsLabelsList == None
+    if eventsLabelsList == nothing
         eventsLabelsList = String[string(eventsList[i]) for i=1:length(eventsList)]
         end
         
