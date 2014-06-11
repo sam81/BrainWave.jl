@@ -1,6 +1,6 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, filterContinuous, _centered, fftconvolve, findArtefactThresh, getAcf, getFRatios, getNoiseSidebands, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, segment
+export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, detrendEEG, filterContinuous, _centered, fftconvolve, findArtefactThresh, getAcf, getFRatios, getNoiseSidebands, getSNR, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, segment
 #segment
 using DataFrames
 using Distributions
@@ -295,6 +295,28 @@ end
 ##     return y
 ## end
 
+function detrendEEG(rec)
+    ## """
+    ## Remove the mean value from each channel of an EEG recording.
+
+    ## Parameters
+    ## ----------
+    ## rec : dict of 2D arrays
+    ##     The EEG recording.
+
+    ## Examples
+    ## ----------
+    ## >>> detrend(rec)
+    
+    ## """
+    nChannels = size(rec)[1]
+    for i=1:nChannels
+        rec[i,:] = rec[i,:] .- mean(rec[i,:])
+    end
+
+    return rec
+end
+
 function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::Integer, cutoffs, transitionWidth::Real)
     ## """
     
@@ -374,7 +396,7 @@ function fftconvolve(x, y, mode)
 end
     
 
-function findArtefactThresh(rec, thresh, channels)
+function findArtefactThresh(rec, thresh; chans=nothing, chanLabels=nothing, chanList=nothing)
     ## """
     ## Find epochs with voltage values exceeding a given threshold.
     
@@ -384,20 +406,60 @@ function findArtefactThresh(rec, thresh, channels)
     ##     The segmented recording
     ## thresh :
     ##     The threshold value.
-    ## channels = array or list of ints
+    ## chans : array of ints
     ##     The indexes of the channels on which to find artefacts.
-        
+    ## chanlabels : array of strings
+    ##     The labels of the channels on which to find artefacts.
+    ## chanList : array of strings
+    ##     The names of all the channels.
+    ## 
     ## Returns
     ## ----------
-
+    ##
+    ## Notes
+    ## ----------
+    ## If neither channel indexes (`chans`) nor channel labels (`chanLabels`)
+    ## for the channels on which to check artefacts are provided, then artefacts
+    ## will be checked for on all channels.
+    ## If channel indexes (`chans`) are provided, then channel labels
+    ## (`chanLabels`) will be ignored.
+    ## If channel labels (`chanLabels`) are given for the channels on which to
+    ## check for artefacts, then a list containing the names of all available
+    ## channels (`chanList`) must be provided as well.
+    ##
+    ## `thresh` should be a list of threshold values, one for each channel to check.
+    ## If `thresh` contains only one value, it is assumed that this is the desired
+    ## threshold for all of the channels to check. If `thresh` contains more than one
+    ## value, its length must match the number of channels to check.
+    ##
     ## Examples
     ## ----------
     ## """
-    if length(channels) != length(thresh)
-        print("The number of thresholds must be equal to the number of channels \n")
-        return
-    end
     eventList = collect(keys(rec))
+        
+    if chans != nothing
+        channels = chans
+    elseif chanLabels != nothing
+        channels = (Int)[]
+        for i=1:length(chanLabels)
+            push!(channels, find(chanList .== chanLabels[i])[1])
+        end
+    else
+        channels = [1:size(rec[eventList[1]])[1]] #assume n channels the same for all dict entries
+    end
+
+
+        
+    
+    if length(channels) != length(thresh)
+        if length(thresh) == 1
+            thresh = [thresh[1] for i=1:length(channels)]
+        else         
+            error("The number of thresholds must be equal to 1 or to the number of channels \n")
+            return
+        end
+    end
+   
     segsToReject = (String => Array{Int,1})[]
     for i=1:length(eventList)
         segsToReject[eventList[i]] = []
@@ -586,7 +648,17 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     end
     return noiseBands, noiseBandsIdx, idxProtect
 end
-                              
+
+function getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
+
+    sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
+    sigMag = spec[sigIdx]
+    loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
+    hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
+    noiseMag = mean([loNoiseMag, hiNoiseMag])
+    snr = 10*log10(sigMag./noiseMag)
+    return snr
+end                       
 
 function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     ## """
