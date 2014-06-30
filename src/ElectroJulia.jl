@@ -1,6 +1,6 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect, chainSegments, deleteSlice3D, detrendEEG, filterContinuous, _centered, fftconvolve, findArtefactThresh, getAcf, getFRatios, getNoiseSidebands, getSNR, getSpectrum, mergeEventTableCodes, nextPowTwo, removeEpochs, removeSpuriousTriggers, rerefCnt, segment
+export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getAcf, getFRatios, getNoiseSidebands, getSNR, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
 #segment
 using DataFrames
 using Distributions
@@ -81,7 +81,7 @@ function averageEpochs(rec)
     return ave, nSegs
 end
 
-function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
+function baselineCorrect!(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
     
     ## Perform baseline correction by subtracting the average pre-event
     ## voltage from each channel of a segmented recording.
@@ -123,7 +123,7 @@ function baselineCorrect(rec, baselineStart::Real, preDur::Real, sampRate::Integ
     
 end
 
-function baselineCorrectloop(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
+function baselineCorrectloop!(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
     
     ## Perform baseline correction by subtracting the average pre-event
     ## voltage from each channel of a segmented recording.
@@ -295,7 +295,7 @@ end
 ##     return y
 ## end
 
-function detrendEEG(rec)
+function detrendEEG!(rec)
     ## """
     ## Remove the mean value from each channel of an EEG recording.
 
@@ -314,10 +314,10 @@ function detrendEEG(rec)
         rec[i,:] = rec[i,:] .- mean(rec[i,:])
     end
 
-    return rec
+    #return rec
 end
 
-function filterContinuous(rec, channels, sampRate, filterType::String, nTaps::Integer, cutoffs, transitionWidth::Real)
+function filterContinuous!(rec, channels, sampRate, filterType::String, nTaps::Integer, cutoffs, transitionWidth::Real)
     ## """
     
     ## Parameters
@@ -447,7 +447,6 @@ function findArtefactThresh(rec, thresh; chans=nothing, chanLabels=nothing, chan
     else
         channels = [1:size(rec[eventList[1]])[1]] #assume n channels the same for all dict entries
     end
-
 
         
     
@@ -715,7 +714,7 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
 end
 
 
-function mergeEventTableCodes(eventTable::Dict{String,Any}, trigList, newTrig::Integer)
+function mergeEventTableCodes!(eventTable::Dict{String,Any}, trigList, newTrig::Integer)
     ## """
     ## Substitute the event table triggers listed in trig_list
     ## with new_trig
@@ -758,7 +757,7 @@ function nextPowTwo(x::Real)
     return out
 end
 
-function removeEpochs(rec, toRemove)
+function removeEpochs!(rec, toRemove)
     ## """
     ## Remove epochs from a segmented recording.
     
@@ -783,7 +782,7 @@ function removeEpochs(rec, toRemove)
     return rec
 end
 
-function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{Int}, minTrigDur::Real)
+function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array{Int}, minTrigDur::Real)
     recTrigs = eventTable["code"]
     recTrigsStart = eventTable["idx"]
     recTrigsDur = eventTable["dur"]
@@ -830,7 +829,7 @@ function removeSpuriousTriggers(eventTable::Dict{String, Any}, sentTrigs::Array{
     return resInfo
 end
 
-function rerefCnt(rec, refChan::Integer; channels=nothing)
+function rerefCnt!(rec, refChan::Integer; channels=nothing)
     ## """
     ## Rereference channels in a continuous recording.
 
