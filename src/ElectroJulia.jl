@@ -1,6 +1,6 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getAcf, getFRatios, getNoiseSidebands, getSNR, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
+export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getACF, getFRatios, getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
 #segment
 using DataFrames
 using Distributions
@@ -484,7 +484,7 @@ function findArtefactThresh(rec, thresh; chans=nothing, chanLabels=nothing, chan
     
 end
 
-function getAcf(sig, sampRate::Real, maxLag::Real; normalize=true)
+function getACF(sig, sampRate::Real, maxLag::Real; normalize=true)
     # Compute the autocorrelation function
     #Arguments:
     # sig: the signal for which the autocorrelation should be computed
@@ -657,6 +657,18 @@ function getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
     noiseMag = mean([loNoiseMag, hiNoiseMag])
     snr = 10*log10(sigMag./noiseMag)
     return snr
+end
+
+function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
+    #like getSNR, but return signal and noise magnitude separately
+
+    sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
+    sigMag = spec[sigIdx]
+    loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
+    hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
+    noiseMag = mean([loNoiseMag, hiNoiseMag])
+    snr = 10*log10(sigMag./noiseMag)
+    return snr, sigMag, noiseMag
 end                       
 
 function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
@@ -707,6 +719,61 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
         p[2:(end-1)] = p[2:(end-1)] * 2 # we"ve got even number of points fft
     end
 
+    freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
+    #x = (String => Array{Float64,1})[]
+    #x["freq"] = freq_array; x["mag"] = p
+    return p, freq_array
+end
+
+
+function getPhaseSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
+    ## """
+    
+    ## Parameters
+    ## ----------
+
+    ## Returns
+    ## ----------
+
+    ## Examples
+    ## ----------
+    ## """
+    n = length(sig)
+    if powerOfTwo == true
+        nfft = 2^nextPowTwo(n)
+    else
+        nfft = n
+    end
+    if window != "none"
+        if window == "hamming"
+             w = hamming(n)
+        elseif window == "hanning"
+             w = hanning(n)
+        elseif window == "blackman"
+             w = blackman(n)
+        elseif window == "bartlett"
+             w = bartlett(n)
+        end
+        sig = sig.*w'
+    end
+    p = fft(sig)#, nfft) # take the fourier transform
+    
+    nUniquePts = ceil((nfft+1)/2)
+    p = p[1:nUniquePts]
+    ## p = abs(p)
+    ## p = p ./ n  # scale by the number of points so that
+    ## # the magnitude does not depend on the length 
+    ## # of the signal or on its sampling frequency  
+    ## p = p.^2  # square it to get the power 
+
+    # multiply by two (see technical document for details)
+    # odd nfft excludes Nyquist point
+    ## if nfft % 2 > 0 # we"ve got odd number of points fft
+    ##      p[2:end] = p[2:end] * 2
+    ## else
+    ##     p[2:(end-1)] = p[2:(end-1)] * 2 # we"ve got even number of points fft
+    ## end
+    p = angle(p)
     freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
     #x = (String => Array{Float64,1})[]
     #x["freq"] = freq_array; x["mag"] = p
