@@ -704,7 +704,7 @@ function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
 end
 
 
-function getSpectrogram(sig, sampRate::Integer, winLength, overlap, winType::String, poweroftwo::Bool)
+function getSpectrogram(sig, sampRate::Integer, winLength::Real, overlap::Real; window=rect, powerOfTwo::Bool=false)
     #winLength in seconds
     #overlap in percent
     #if the signal length is not a multiple of the window length it is trucated
@@ -713,29 +713,20 @@ function getSpectrogram(sig, sampRate::Integer, winLength, overlap, winType::Str
     step = winLengthPnt - round(winLengthPnt * overlap / 100)
     ind = [1:step:length(sig) - winLengthPnt]
     n = length(ind)
-    #println("winLengthPnt ", winLengthPnt)
-    #println("step ", step)
-    #println("length(sig) ", length(sig))
-    p, freqArray = getSpectrum(sig[ind[1]:ind[1]+winLengthPnt], sampRate, winType, poweroftwo)
+    p, freqArray = getSpectrum(sig[ind[1]:ind[1]+winLengthPnt], sampRate, window=window, powerOfTwo=powerOfTwo)
 
     powerMatrix = zeros(length(freqArray), n)
     powerMatrix[:,1] = p
     for i=2:n
-        p, freqArray = getSpectrum(sig[ind[i]:ind[i]+winLengthPnt], sampRate, winType, poweroftwo)
+        p, freqArray = getSpectrum(sig[ind[i]:ind[i]+winLengthPnt], sampRate, window=window, powerOfTwo=powerOfTwo)
         powerMatrix[:,i] = p
     end
-    #timeInd = [0:step:length(sig)]
-    #timeInd2 = [0, ind+step-1]
-    #timeArray = 1/sampRate .* (timeInd)
-    #timeArray2 = 1/sampRate .* (timeInd2)
-    timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
-    #println(timeArray)
-    #println(timeArray2)
-    #println(timeArray3)
-    return powerMatrix, freqArray, timeArray3
+    timeArray = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+  
+    return powerMatrix, freqArray, timeArray
 end
 
-function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
+function getSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false)
     ## """
     
     ## Parameters
@@ -753,18 +744,9 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     else
         nfft = n
     end
-    if window != "none"
-        if window == "hamming"
-             w = hamming(n)
-        elseif window == "hanning"
-             w = hanning(n)
-        elseif window == "blackman"
-             w = blackman(n)
-        elseif window == "bartlett"
-             w = bartlett(n)
-        end
-        sig = sig.*w'
-    end
+    w = window(n)
+    sig = sig.*w'
+    
     p = fft(sig)#, nfft) # take the fourier transform
     
     nUniquePts = ceil((nfft+1)/2)
@@ -790,7 +772,7 @@ function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
 end
 
 
-function getPhaseSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
+function getPhaseSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false)
     ## """
     
     ## Parameters
@@ -808,39 +790,17 @@ function getPhaseSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bo
     else
         nfft = n
     end
-    if window != "none"
-        if window == "hamming"
-             w = hamming(n)
-        elseif window == "hanning"
-             w = hanning(n)
-        elseif window == "blackman"
-             w = blackman(n)
-        elseif window == "bartlett"
-             w = bartlett(n)
-        end
-        sig = sig.*w'
-    end
+    w = window(n)
+    sig = sig.*w'
+
     p = fft(sig)#, nfft) # take the fourier transform
     
     nUniquePts = ceil((nfft+1)/2)
     p = p[1:nUniquePts]
-    ## p = abs(p)
-    ## p = p ./ n  # scale by the number of points so that
-    ## # the magnitude does not depend on the length 
-    ## # of the signal or on its sampling frequency  
-    ## p = p.^2  # square it to get the power 
-
-    # multiply by two (see technical document for details)
-    # odd nfft excludes Nyquist point
-    ## if nfft % 2 > 0 # we"ve got odd number of points fft
-    ##      p[2:end] = p[2:end] * 2
-    ## else
-    ##     p[2:(end-1)] = p[2:(end-1)] * 2 # we"ve got even number of points fft
-    ## end
+  
     p = angle(p)
     freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
-    #x = (String => Array{Float64,1})[]
-    #x["freq"] = freq_array; x["mag"] = p
+ 
     return p, freq_array
 end
 
