@@ -1,6 +1,6 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getACF, getFRatios, getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
+export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios, getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
 #segment
 using DataFrames
 using Distributions
@@ -484,7 +484,7 @@ function findArtefactThresh(rec, thresh; chans=nothing, chanLabels=nothing, chan
     
 end
 
-function getACF(sig, sampRate::Real, maxLag::Real; normalize=true)
+function getACF(sig, sampRate::Real, maxLag::Real; normalize=true, window=rect)
     # Compute the autocorrelation function
     #Arguments:
     # sig: the signal for which the autocorrelation should be computed
@@ -518,6 +518,9 @@ function getACF(sig, sampRate::Real, maxLag::Real; normalize=true)
     ## return out, lags
 
     n = length(sig)
+    w = window(n)
+    sig = sig.*w'
+    
     maxLagPnt = int(round(maxLag*sampRate))
     if maxLagPnt > n
         maxLagPnt = n
@@ -532,6 +535,35 @@ function getACF(sig, sampRate::Real, maxLag::Real; normalize=true)
     return out, lags
 
     
+end
+
+function getAutocorrelogram(sig, sampRate::Integer, winLength, overlap, maxLag; normalize=true, window=rect)
+    #sig: the signal for which the autocorrelogram should be computed
+    #sampRate: the sampling rate of the signal
+    #winLength = the length of the sliding window over which to take the autocorrelations
+    #overlap: overlap between successive windows, in percent
+    #maxLag: the maximum lag for which to compute the autocorrelations
+    #normalize: if `true` divide the output by the maximum ACF value so that ACF values range between 0 and 1
+    #window: the window to be applied to each segment before computing the ACF, defauls to `rect` which does nothing
+    
+    winLengthPnt = floor(winLength * sampRate)
+    step = winLengthPnt - round(winLengthPnt * overlap / 100)
+    ind = [1:step:length(sig) - winLengthPnt]
+    n = length(ind)
+
+    acf, lags = getACF(sig[ind[1]:ind[1]+winLengthPnt], sampRate, maxLag, normalize=normalize, window=window)
+
+    acfMatrix = zeros(length(acf), n)
+    acfMatrix[:,1] = acf
+    for i=2:n
+        acf, lags = getACF(sig[ind[i]:ind[i]+winLengthPnt], sampRate, maxLag, normalize=normalize, window=window)
+        acfMatrix[:,i] = acf
+    end
+
+    #timeInd = arange(0, len(sig), step)
+    #timeArray = 1./sampRate * (timeInd)
+    timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    return acfMatrix, lags, timeArray3
 end
 
 function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
@@ -669,7 +701,39 @@ function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
     noiseMag = mean([loNoiseMag, hiNoiseMag])
     snr = 10*log10(sigMag./noiseMag)
     return snr, sigMag, noiseMag
-end                       
+end
+
+
+function getSpectrogram(sig, sampRate::Integer, winLength, overlap, winType::String, poweroftwo::Bool)
+    #winLength in seconds
+    #overlap in percent
+    #if the signal length is not a multiple of the window length it is trucated
+    winLengthPnt = floor(winLength * sampRate)
+    
+    step = winLengthPnt - round(winLengthPnt * overlap / 100)
+    ind = [1:step:length(sig) - winLengthPnt]
+    n = length(ind)
+    #println("winLengthPnt ", winLengthPnt)
+    #println("step ", step)
+    #println("length(sig) ", length(sig))
+    p, freqArray = getSpectrum(sig[ind[1]:ind[1]+winLengthPnt], sampRate, winType, poweroftwo)
+
+    powerMatrix = zeros(length(freqArray), n)
+    powerMatrix[:,1] = p
+    for i=2:n
+        p, freqArray = getSpectrum(sig[ind[i]:ind[i]+winLengthPnt], sampRate, winType, poweroftwo)
+        powerMatrix[:,i] = p
+    end
+    #timeInd = [0:step:length(sig)]
+    #timeInd2 = [0, ind+step-1]
+    #timeArray = 1/sampRate .* (timeInd)
+    #timeArray2 = 1/sampRate .* (timeInd2)
+    timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    #println(timeArray)
+    #println(timeArray2)
+    #println(timeArray3)
+    return powerMatrix, freqArray, timeArray3
+end
 
 function getSpectrum(sig, sampRate::Integer, window::String, powerOfTwo::Bool)
     ## """
