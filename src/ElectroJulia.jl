@@ -1,11 +1,12 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios, getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
+export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice2D!, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios, getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
 #segment
 using DataFrames
 using Distributions
 using DSP
 using PyCall
+using Docile
 #using Devectorize
 #pyinitialize("python3")
 @pyimport scipy.signal as scisig
@@ -81,32 +82,29 @@ function averageEpochs(rec)
     return ave, nSegs
 end
 
-function baselineCorrect!(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
-    
-    ## Perform baseline correction by subtracting the average pre-event
-    ## voltage from each channel of a segmented recording.
+@doc doc"""
+Perform baseline correction by subtracting the average pre-event
+voltage from each channel of a segmented recording.
 
-    ## Parameters
-    ## ----------
-    ## rec: dict of 3D arrays
-    ##     The segmented recording.
-    ## baseline_start: float
-    ##     Start time of the baseline window relative to the event onset, in seconds.
-    ##     The absolute value of baseline_start cannot be greater than pre_dur.
-    ##     In practice baseline_start allows you to define a baseline window shorter
-    ##     than the time window before the experimental event (pre_dur).
-    ## pre_dur: float
-    ##     Duration of recording before the experimental event, in seconds.
-    ## samp_rate: int
-    ##     The samplig rate of the EEG recording.
+#### Parameters
+* `rec::Dict{String,Array{T,3}}`: The segmented recording.
+* `baselineStart::Real`: Start time of the baseline window relative to the event onset, in seconds.
+                          The absolute value of `baselineStart` cannot be greater than `preDur`.
+                          In practice `baselineStart` allows you to define a baseline window shorter
+                          than the time window before the experimental event (`preDur`).
+* `preDur::Real`: Duration of recording before the experimental event, in seconds.
+* `sampRate::Integer`: The samplig rate of the EEG recording.
     
-    ## Examples
-    ## ----------
-    ## #baseline window has the same duration of pre_dur
-    ## >>> baseline_correct(rec=rec, baseline_start=-0.2, pre_dur=0.2, samp_rate=512)
-    ## #now with a baseline shorter than pre_dur
-    ## >>> baseline_correct(rec=rec, baseline_start=-0.15, pre_dur=0.2, samp_rate=512)
+#### Examples
 
+```julia
+#baseline window has the same duration of pre_dur
+baselineCorrect(rec=rec, baselineStart=-0.2, preDur=0.2, sampRate=512)
+#now with a baseline shorter than pre_dur
+baselineCorrect(rec, -0.15, 0.2, 512)
+```
+"""->
+function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
     eventList = collect(keys(rec))
     epochStartSample = int(round(preDur*sampRate))
     baselineStartSample = int((epochStartSample+1) - abs(round(baselineStart*sampRate)))
@@ -123,32 +121,30 @@ function baselineCorrect!(rec, baselineStart::Real, preDur::Real, sampRate::Inte
     
 end
 
-function baselineCorrectloop!(rec, baselineStart::Real, preDur::Real, sampRate::Integer)
-    
-    ## Perform baseline correction by subtracting the average pre-event
-    ## voltage from each channel of a segmented recording.
+@doc doc"""
+Perform baseline correction by subtracting the average pre-event
+voltage from each channel of a segmented recording.
 
-    ## Parameters
-    ## ----------
-    ## rec: dict of 3D arrays
-    ##     The segmented recording.
-    ## baseline_start: float
-    ##     Start time of the baseline window relative to the event onset, in seconds.
-    ##     The absolute value of baseline_start cannot be greater than pre_dur.
-    ##     In practice baseline_start allows you to define a baseline window shorter
-    ##     than the time window before the experimental event (pre_dur).
-    ## pre_dur: float
-    ##     Duration of recording before the experimental event, in seconds.
-    ## samp_rate: int
-    ##     The samplig rate of the EEG recording.
+#### Parameters
+* `rec::Dict{String,Array{T,3}}`: The segmented recording.
+* `baselineStart::Real`: Start time of the baseline window relative to the event onset, in seconds.
+                          The absolute value of `baselineStart` cannot be greater than `preDur`.
+                          In practice `baselineStart` allows you to define a baseline window shorter
+                          than the time window before the experimental event (`preDur`).
+* `preDur::Real`: Duration of recording before the experimental event, in seconds.
+* `sampRate::Integer`: The samplig rate of the EEG recording.
     
-    ## Examples
-    ## ----------
-    ## #baseline window has the same duration of pre_dur
-    ## >>> baseline_correct(rec=rec, baseline_start=-0.2, pre_dur=0.2, samp_rate=512)
-    ## #now with a baseline shorter than pre_dur
-    ## >>> baseline_correct(rec=rec, baseline_start=-0.15, pre_dur=0.2, samp_rate=512)
+#### Examples
 
+```julia
+#baseline window has the same duration of pre_dur
+baselineCorrect(rec=rec, baselineStart=-0.2, preDur=0.2, sampRate=512)
+#now with a baseline shorter than pre_dur
+baselineCorrect(rec, -0.15, 0.2, 512)
+```
+"""->
+function baselineCorrectloop!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
+    
     eventList = collect(keys(rec))
     epochStartSample = int(round(preDur*sampRate))
     baselineStartSample = int((epochStartSample+1) - abs(round(baselineStart*sampRate)))
@@ -248,6 +244,15 @@ end
 ##     end
 ##     return y
 ## end
+
+function deleteSlice2D!(x, toRemove, axis)
+    if axis == 1
+        x = x[[setdiff(1:size(x, 1), toRemove)],:]
+    elseif axis == 2
+        x = x[:, [setdiff(1:size(x, 2), toRemove)]]
+    end     
+end
+   
 
 function deleteSlice3D(x, toRemove, axis)
     toKeep = (Int)[]
@@ -961,18 +966,50 @@ function rerefCnt!(rec, refChan::Integer; channels=nothing)
 end
 
 
+@doc doc"""
+Segment a continuous EEG recording into discrete event-related epochs.
+    
+#### Parameters
 
-function segment(rec, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer, eventsList=nothing, eventsLabelsList=nothing)
+* `rec::AbstractMatrix{T<:Real}`: The nChannelsXnSamples array with the EEG data.
+* `eventTable`: dictionary with the following keys
+    * `code::AbstractVector{T<:Integer}`: The list of triggers in the EEG recording.
+    * `idx::AbstractVector{T<:Integer}`: The indexes of `trigs` in the EEG recording.
+* epochStart::FloatingPoint`: The time at which the epoch starts relative to the trigger code, in seconds.
+* epochEnd::FloatingPoint`: The time at which the epoch ends relative to the trigger code, in seconds.
+* sampRate::Integer`: The sampling rate of the EEG recording.
+* eventList::AbstractVector{T<:Integer}`: The list of events for which epochs should be extracted.
+        If no list is given epochs will be extracted for all the trigger
+        codes present in the event table.
+
+#### Returns
+
+* `segs::Dict{String,Array{T,3}}`: The segmented recording.
+        The dictionary has a key for each condition.
+        The corresponding key value is a 3D array with dimensions
+        nChannels x nSamples x nSegments
+* `nSegs::Dict{String,Int64}`: The number of segments for each condition.
+        
+#### Examples
+
+```julia
+segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], eventsLabelsList=["cnd1", "cnd2"])
+```
+"""->
+function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTable::Dict{String, Any},
+                                                 epochStart::Real, epochEnd::Real, sampRate::Integer;
+                                                 eventsList::AbstractVector{P}=unique(eventTable["code"]),
+                                                 eventsLabelsList::AbstractVector{S}=String[string(eventsList[i]) for i=1:length(eventsList)])
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
-    if eventsList == nothing
-        eventsList = unique(trigs)
-    end
+    ## if eventsList == nothing
+    ##     eventsList = unique(trigs)
+    ## end
 
-    if eventsLabelsList == nothing
-        eventsLabelsList = String[string(eventsList[i]) for i=1:length(eventsList)]
-        end
+    ## if eventsLabelsList == nothing
+    ##     eventsLabelsList = String[string(eventsList[i]) for i=1:length(eventsList)]
+    ## end
         
 
     epochStartSample = int(round(epochStart*sampRate))

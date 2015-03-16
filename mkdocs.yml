@@ -1,0 +1,6 @@
+site_name: ElectroJulia.jl
+theme: readthedocs
+pages:
+    - ['index.md', 'Introduction']
+    - ['API.md', 'Function Reference']
+
