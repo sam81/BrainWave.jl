@@ -1,6 +1,11 @@
 module ElectroJulia
 
-export averageAverages, averageEpochs, baselineCorrect!, chainSegments, deleteSlice2D!, deleteSlice3D, detrendEEG!, filterContinuous!, _centered, fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios, getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum, mergeEventTableCodes!, nextPowTwo, removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
+export averageAverages, averageEpochs, baselineCorrect!, chainSegments,
+deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, _centered,
+fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios,
+getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
+mergeEventTableCodes!, nextPowTwo,
+removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
 #segment
 using DataFrames
 using Distributions
@@ -9,6 +14,7 @@ using PyCall
 using Docile
 #using Devectorize
 #pyinitialize("python3")
+
 @pyimport scipy.signal as scisig
 function averageAverages(aveList, nSegments)
     ## """
@@ -245,12 +251,54 @@ end
 ##     return y
 ## end
 
-function deleteSlice2D!(x, toRemove, axis)
+@doc doc"""
+Delete a row or a column from a 2-dimensional array.
+
+#### Args
+
+* `x::AbstractMatrix{T}`: the 2-dimensional array from which rows of columns should be deleted.
+* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the rows to remove.
+* `axis::Integer`: an integer indicating whether rows or columns should be removed. 1 corresponds to rows, 2 corresponds to columns.
+
+#### Returns
+
+* `x::AbstractMatrix{T}`: a 2-dimansional array with the selected row or columns removed.
+
+#### Examples
+
+```julia
+x = [1 2 3 4;
+     5 6 7 8;
+     9 10 11 12;
+     13 14 15 16
+     ]
+
+#remove first row
+isequal(deleteSlice2D(x, 1, 1), x[2:end,:])
+#remove rows 1 and 4
+isequal(deleteSlice2D(x, [1,4], 1), x[2:3,:])
+# remove columns 1 and 4
+isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
+
+```
+"""->
+function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union(P, AbstractVector{P}), axis::Integer)
+    if in(axis, [1,2]) == false
+        error("axis must be either 1 (rows), or 2 (columns)")
+    end
+    if length(toRemove) > 1
+        toRemove = sort(toRemove)
+    end
     if axis == 1
-        x = x[[setdiff(1:size(x, 1), toRemove)],:]
+        for i=1:length(toRemove)
+            x = x[[setdiff(1:size(x, 1), toRemove[i]-i+1)],:]
+        end
     elseif axis == 2
-        x = x[:, [setdiff(1:size(x, 2), toRemove)]]
-    end     
+        for i=1:length(toRemove)
+            x = x[:, [setdiff(1:size(x, 2), toRemove[i]-i+1)]]
+        end
+    end
+    return(x)
 end
    
 
