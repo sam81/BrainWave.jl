@@ -1,7 +1,7 @@
 module ElectroJulia
 
 export averageAverages, averageEpochs, baselineCorrect!, chainSegments,
-deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, _centered,
+deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, #_centered,
 fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios,
 getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
 mergeEventTableCodes!, nextPowTwo,
@@ -16,25 +16,27 @@ using Docile
 #pyinitialize("python3")
 
 @pyimport scipy.signal as scisig
-function averageAverages(aveList, nSegments)
-    ## """
-    ## Perform a weighted average of a list of averages. The weight of
-    ## each average in the list is determined by the number of segments
-    ## from which it was obtained.
+@doc doc"""
+Perform a weighted average of a list of averages. The weight of
+each average in the list is determined by the number of segments
+from which it was obtained.
     
-    ## Parameters
-    ## ----------
-    ## aveList : dict of list of 2D numpy arrays
-    ##     The list of averages for each experimental condition.
-    ## nSegments : dict of ints
-    ##     The number of epochs on which each average is based 
+#### Arguments
 
-    ## Returns
-    ## ----------
+* `aveListArray::Array{Dict{String, Array{Real, 2}}}`: The list of averages for each experimental condition.
+* `nSegments::Array{Dict{String, Integer}}`: The number of epochs on which each average is based.
 
-    ## Examples
-    ## ----------
-    ## """
+#### Returns
+
+* `weightedAve::Dict{String,Array{Real,2}}`: The weighted average of the averages in the list.
+
+#### Examples
+
+```julia
+aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
+```
+"""->
+function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}})
     eventList = collect(keys(aveList[1]))
     weightedAve = (String => Array{eltype(aveList[1][eventList[1]]),2})[]
     nSegsSum = (String => Int)[]
@@ -57,26 +59,27 @@ function averageAverages(aveList, nSegments)
     return weightedAve, nSegsSum
 end
 
-function averageEpochs(rec)
-    ## """
-    ## Average the epochs of a segmented recording.
+@doc doc"""
+Average the epochs of a segmented recording.
 
-    ## Parameters
-    ## ----------
-    ## rec : dict of 3D numpy arrays with dimensions (n_channels x n_samples x n_epochs)
-    ##     Recording
+#### Arguments
 
-    ## Returns
-    ## ----------
-    ## ave : dict of 2D numpy arrays with dimensions (n_channels x n_samples)
-    ##     The average epochs for each condition.
-    ## n_segs : dict of ints
-    ##     The number of epochs averaged for each condition.
+* `rec::Dict{String,Array{T,3}}`: Dictionary containing the segmented recordings for each condition.
+        The segmented recordings consist of 3-dimensional arrays (n_channels x n_samples x n_epochs).
+
+#### Returns
+
+* `ave::Dict{String,Array{Real,2}}`: The averaged epochs for each condition.
+* `n_segs::Dict{String,Integer}`: The number of epochs averaged for each condition.
         
-    ## Examples
-    ## ----------
-    ## >>> ave, n_segs = average_epochs(rec=rec)
-    ## """
+#### Examples
+
+```julia
+ave, nSegs = averageEpochs(rec)
+```
+"""->
+function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
+
     
     eventList = collect(keys(rec))
     ave = (String => Array{eltype(rec[eventList[1]]),2})[]
@@ -92,7 +95,8 @@ end
 Perform baseline correction by subtracting the average pre-event
 voltage from each channel of a segmented recording.
 
-#### Parameters
+#### Arguments
+
 * `rec::Dict{String,Array{T,3}}`: The segmented recording.
 * `baselineStart::Real`: Start time of the baseline window relative to the event onset, in seconds.
                           The absolute value of `baselineStart` cannot be greater than `preDur`.
@@ -105,7 +109,7 @@ voltage from each channel of a segmented recording.
 
 ```julia
 #baseline window has the same duration of pre_dur
-baselineCorrect(rec=rec, baselineStart=-0.2, preDur=0.2, sampRate=512)
+baselineCorrect(rec, -0.2, 0.2, 512)
 #now with a baseline shorter than pre_dur
 baselineCorrect(rec, -0.15, 0.2, 512)
 ```
@@ -132,7 +136,7 @@ Perform baseline correction by subtracting the average pre-event
 voltage from each channel of a segmented recording.
 
 #### Parameters
-* `rec::Dict{String,Array{T,3}}`: The segmented recording.
+* `rec::Dict{String,Array{Real,3}}`: The segmented recording.
 * `baselineStart::Real`: Start time of the baseline window relative to the event onset, in seconds.
                           The absolute value of `baselineStart` cannot be greater than `preDur`.
                           In practice `baselineStart` allows you to define a baseline window shorter
@@ -144,7 +148,7 @@ voltage from each channel of a segmented recording.
 
 ```julia
 #baseline window has the same duration of pre_dur
-baselineCorrect(rec=rec, baselineStart=-0.2, preDur=0.2, sampRate=512)
+baselineCorrect(rec, -0.2, 0.2, 512)
 #now with a baseline shorter than pre_dur
 baselineCorrect(rec, -0.15, 0.2, 512)
 ```
@@ -168,13 +172,14 @@ function baselineCorrectloop!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineSta
     end
 end
 
-function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
-    ## """
+@doc doc"""
     ## Take a dictionary containing in each key a list of segments, and chain these segments
     ## into chunks of length nChunks
     ## baselineDur is for determining what is the zero point
     ## startTime and endTime are given with reference to the zero point
-    ## """
+"""->
+function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
+
     baselinePnts = round(baselineDur * sampRate)
     startPnt = int(round(startTime*sampRate) + baselinePnts) +1
     endPnt = int(round(endTime*sampRate) + baselinePnts) 
@@ -301,7 +306,9 @@ function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union
     return(x)
 end
    
-
+@doc doc"""
+Delete a slice from a 3-dimensional array.
+"""->
 function deleteSlice3D(x, toRemove, axis)
     toKeep = (Int)[]
     for i=1:size(x)[axis]
@@ -348,41 +355,57 @@ end
 ##     return y
 ## end
 
-function detrendEEG!(rec)
-    ## """
-    ## Remove the mean value from each channel of an EEG recording.
+@doc doc"""
+Remove the mean value from each channel of an EEG recording.
 
-    ## Parameters
-    ## ----------
-    ## rec : dict of 2D arrays
-    ##     The EEG recording.
+#### Arguments
+* `rec::AbstractMatrix{T}`: The EEG recording.
 
-    ## Examples
-    ## ----------
-    ## >>> detrend(rec)
+#### Examples
+
+```julia
+x = [1 2 3; 4 5 6]
+detrendEEG!(x)
+```
     
-    ## """
+"""->
+function detrendEEG!{T<:Real}(rec::AbstractMatrix{T})
+
     nChannels = size(rec)[1]
     for i=1:nChannels
         rec[i,:] = rec[i,:] .- mean(rec[i,:])
     end
-
-    #return rec
+    
 end
 
-function filterContinuous!(rec, channels, sampRate, filterType::String, nTaps::Integer, cutoffs, transitionWidth::Real)
-    ## """
+@doc doc"""
+Filter a continuous EEG recording.
     
-    ## Parameters
-    ## ----------
+#### Arguments
 
-    ## Returns
-    ## ----------
+* rec::AbstractMatrix{Real}`: The nChannelsXnSamples array with the EEG recording.
+* `sampRate::Integer`: The EEG recording sampling rate.
+* `filterType::String`:  The filter type., one of "lowpass", "highpass", or "bandpass".
+* `nTaps::Integer`: The number of filter taps.
+* `cutoffs::Union(Real, AbstractVector{Real}`:: The filter cutoffs. If "filterType" is "lowpass" or "highpass"
+        the "cutoffs" array should contain a single value. If "filterType"
+        is bandpass the "cutoffs" array should contain the lower and
+        the upper cutoffs in increasing order.
+* `channels::Union(Q, AbstractVector{Q})`: The channel number, or the list of channels numbers that should be filtered.
+* `transitionWidth::Real`: The width of the filter transition region, normalized between 0-1.
+        For a lower cutoff the nominal transition region will go from
+        `(1-transitionWidth)*cutoff` to `cutoff`. For a higher cutoff
+        the nominal transition region will go from cutoff to
+        `(1+transitionWidth)*cutoff`.
+        
+#### Examples
 
-    ## Examples
-    ## ----------
-    ## """
-       
+```julia
+filterContinuous(rec, 2048, "highpass", 512, [30], channels=[0,1,2,3], transitionWidth=0.2)
+```
+"""->
+function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(P, AbstractVector{P});
+                                             channels::Union(Q, AbstractVector{Q})=[1:size(rec,1)], transitionWidth::Real=0.2)
     if filterType == "lowpass"
         f3 = cutoffs[1]
         f4 = cutoffs[1] * (1+transitionWidth)
@@ -413,9 +436,9 @@ function filterContinuous!(rec, channels, sampRate, filterType::String, nTaps::I
     b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
     #b = ones(Float32,nTaps)
     nChannels = size(rec)[1]
-    if channels == nothing
-        channels = [1:nChannels]
-    end
+    ## if channels == nothing
+    ##     channels = [1:nChannels]
+    ## end
    
     for i=1:nChannels
         if in(i, channels) == true
@@ -426,6 +449,8 @@ function filterContinuous!(rec, channels, sampRate, filterType::String, nTaps::I
     return rec
 end
 
+@doc doc"""
+"""->
 function _centered(arr, newsize)
     # Return the center newsize portion of the array.
     currsize = size(arr)[1]
@@ -434,6 +459,9 @@ function _centered(arr, newsize)
     return arr[startind:endind]
 end
 
+@doc doc"""
+
+"""->
 function fftconvolve(x, y, mode)
     s1 = size(x)[1]#check if array has two dim?
     s2 = size(y)[1]
@@ -447,47 +475,44 @@ function fftconvolve(x, y, mode)
         return _centered(convArray, abs(s1 - s2) + 1)
     end
 end
-    
 
-function findArtefactThresh(rec, thresh; chans=nothing, chanLabels=nothing, chanList=nothing)
-    ## """
-    ## Find epochs with voltage values exceeding a given threshold.
+@doc doc"""
+
+Find epochs with voltage values exceeding a given threshold.
     
-    ## Parameters
-    ## ----------
-    ## rec : dict of 3D arrays
-    ##     The segmented recording
-    ## thresh :
-    ##     The threshold value.
-    ## chans : array of ints
-    ##     The indexes of the channels on which to find artefacts.
-    ## chanlabels : array of strings
-    ##     The labels of the channels on which to find artefacts.
-    ## chanList : array of strings
-    ##     The names of all the channels.
-    ## 
-    ## Returns
-    ## ----------
-    ##
-    ## Notes
-    ## ----------
-    ## If neither channel indexes (`chans`) nor channel labels (`chanLabels`)
-    ## for the channels on which to check artefacts are provided, then artefacts
-    ## will be checked for on all channels.
-    ## If channel indexes (`chans`) are provided, then channel labels
-    ## (`chanLabels`) will be ignored.
-    ## If channel labels (`chanLabels`) are given for the channels on which to
-    ## check for artefacts, then a list containing the names of all available
-    ## channels (`chanList`) must be provided as well.
-    ##
-    ## `thresh` should be a list of threshold values, one for each channel to check.
-    ## If `thresh` contains only one value, it is assumed that this is the desired
-    ## threshold for all of the channels to check. If `thresh` contains more than one
-    ## value, its length must match the number of channels to check.
-    ##
-    ## Examples
-    ## ----------
-    ## """
+#### Args
+
+* `rec::Dict{String, Array{Real, 3}}`: The segmented recording.
+* `thresh::Union(Real, AbstractVector{Real})`: The threshold value(s).
+* `chans::array of ints`: The indexes of the channels on which to find artefacts.
+* `chanlabels::array of strings`: The labels of the channels on which to find artefacts.
+*  `chanList::array of strings`: The names of all the channels.
+    
+#### Returns
+
+    
+#### Notes
+
+If neither channel indexes (`chans`) nor channel labels (`chanLabels`)
+for the channels on which to check artefacts are provided, then artefacts
+will be checked for on all channels.
+If channel indexes (`chans`) are provided, then channel labels
+(`chanLabels`) will be ignored.
+If channel labels (`chanLabels`) are given for the channels on which to
+check for artefacts, then a list containing the names of all available
+channels (`chanList`) must be provided as well.
+
+`thresh` should be a list of threshold values, one for each channel to check.
+If `thresh` contains only one value, it is assumed that this is the desired
+threshold for all of the channels to check. If `thresh` contains more than one
+value, its length must match the number of channels to check.
+    
+#### Examples
+
+
+""" ->
+function findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T, 3}}, thresh::Union(P, AbstractVector{P}); chans=nothing, chanLabels=nothing, chanList=nothing)
+
     eventList = collect(keys(rec))
         
     if chans != nothing
@@ -537,38 +562,41 @@ function findArtefactThresh(rec, thresh; chans=nothing, chanLabels=nothing, chan
     
 end
 
+@doc doc"""
+Compute the autocorrelation function
+Arguments:
+sig: the signal for which the autocorrelation should be computed
+samprate: the sampling rate of the signal
+maxLag: the maximum lag (1/f) for which the autocorrelation function should be computed
+normalize: whether the autocorrelation should be scaled between [-1, 1]
+
+Returns
+acf: the autocorrelation function
+lags: the time lags for which the autocorrelation function was computed
+
+n = length(sig)
+acfArray = zeros(n*2)
+acfArray[1:n] = sig
+out = zeros(n)
+
+maxLagPnt = int(round(maxLag*sampRate))
+if maxLagPnt > n
+maxLagPnt = n
+end
+
+for i = 1:maxLagPnt
+out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
+end
+
+lags = [1:maxLagPnt]./sampRate
+
+if normalize == true
+out = out ./ maximum(out)
+end
+return out, lags
+"""->
 function getACF(sig, sampRate::Real, maxLag::Real; normalize=true, window=rect)
-    # Compute the autocorrelation function
-    #Arguments:
-    # sig: the signal for which the autocorrelation should be computed
-    # samprate: the sampling rate of the signal
-    # maxLag: the maximum lag (1/f) for which the autocorrelation function should be computed
-    # normalize: whether the autocorrelation should be scaled between [-1, 1]
-    #
-    #Returns
-    # acf: the autocorrelation function
-    # lags: the time lags for which the autocorrelation function was computed
 
-    ## n = length(sig)
-    ## acfArray = zeros(n*2)
-    ## acfArray[1:n] = sig
-    ## out = zeros(n)
-
-    ## maxLagPnt = int(round(maxLag*sampRate))
-    ## if maxLagPnt > n
-    ##     maxLagPnt = n
-    ## end
-
-    ## for i = 1:maxLagPnt
-    ##     out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
-    ## end
-    
-    ## lags = [1:maxLagPnt]./sampRate
-    
-    ## if normalize == true
-    ##     out = out ./ maximum(out)
-    ## end
-    ## return out, lags
 
     n = length(sig)
     w = window(n)
@@ -590,14 +618,17 @@ function getACF(sig, sampRate::Real, maxLag::Real; normalize=true, window=rect)
     
 end
 
+@doc doc"""
+sig: the signal for which the autocorrelogram should be computed
+sampRate: the sampling rate of the signal
+winLength = the length of the sliding window over which to take the autocorrelations
+overlap: overlap between successive windows, in percent
+maxLag: the maximum lag for which to compute the autocorrelations
+normalize: if `true` divide the output by the maximum ACF value so that ACF values range between 0 and 1
+window: the window to be applied to each segment before computing the ACF, defauls to `rect` which does nothing
+"""->
 function getAutocorrelogram(sig, sampRate::Integer, winLength, overlap, maxLag; normalize=true, window=rect)
-    #sig: the signal for which the autocorrelogram should be computed
-    #sampRate: the sampling rate of the signal
-    #winLength = the length of the sliding window over which to take the autocorrelations
-    #overlap: overlap between successive windows, in percent
-    #maxLag: the maximum lag for which to compute the autocorrelations
-    #normalize: if `true` divide the output by the maximum ACF value so that ACF values range between 0 and 1
-    #window: the window to be applied to each segment before computing the ACF, defauls to `rect` which does nothing
+
     
     winLengthPnt = floor(winLength * sampRate)
     step = winLengthPnt - round(winLengthPnt * overlap / 100)
@@ -619,10 +650,9 @@ function getAutocorrelogram(sig, sampRate::Integer, winLength, overlap, maxLag; 
     return acfMatrix, lags, timeArray3
 end
 
+@doc doc"""
+"""->
 function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
-    ##"""
-    ##
-    ##"""
 
     cnds = collect(keys(ffts))
     compIdx = (Int)[]
@@ -670,14 +700,15 @@ function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
     return res
 end
 
+@doc doc"""
+the 2 has the possibility to exclude extra components, useful for distortion products
+components: a list containing the indexes of the target components
+nCompSide: number of components used for each side band
+n_exclude_side: number of components adjacent to to the target components to exclude
+fft_array: array containing the fft values
+"""->
 function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclude)
-    #"""
-    #the 2 has the possibility to exclude extra components, useful for distortion products
-    #"""
-    #components: a list containing the indexes of the target components
-    #nCompSide: number of components used for each side band
-    #n_exclude_side: number of components adjacent to to the target components to exclude
-    #fft_array: array containing the fft values
+
     compIdx = (Int)[]
     for freq in freqs
         thisIdx = find(abs(fftDict["freq"] .- freq) .== minimum(abs(fftDict["freq"] .- freq)))
@@ -733,6 +764,8 @@ function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclud
     return noiseBands, noiseBandsIdx, idxProtect
 end
 
+@doc doc"""
+"""->
 function getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
 
     sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
@@ -744,9 +777,12 @@ function getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
     return snr
 end
 
-function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
-    #like getSNR, but return signal and noise magnitude separately
+@doc doc"""
+like getSNR, but return signal and noise magnitude separately
 
+"""->
+function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
+   
     sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
@@ -756,11 +792,12 @@ function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
     return snr, sigMag, noiseMag
 end
 
-
+@doc doc"""
+winLength in seconds
+overlap in percent
+if the signal length is not a multiple of the window length it is trucated
+"""->
 function getSpectrogram(sig, sampRate::Integer, winLength::Real, overlap::Real; window=rect, powerOfTwo::Bool=false)
-    #winLength in seconds
-    #overlap in percent
-    #if the signal length is not a multiple of the window length it is trucated
     winLengthPnt = floor(winLength * sampRate)
     
     step = winLengthPnt - round(winLengthPnt * overlap / 100)
@@ -779,18 +816,9 @@ function getSpectrogram(sig, sampRate::Integer, winLength::Real, overlap::Real; 
     return powerMatrix, freqArray, timeArray
 end
 
+@doc doc"""
+"""->
 function getSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false)
-    ## """
-    
-    ## Parameters
-    ## ----------
-
-    ## Returns
-    ## ----------
-
-    ## Examples
-    ## ----------
-    ## """
     n = length(sig)
     if powerOfTwo == true
         nfft = 2^nextPowTwo(n)
@@ -824,19 +852,9 @@ function getSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false
     return p, freq_array
 end
 
-
+@doc doc"""
+"""->
 function getPhaseSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false)
-    ## """
-    
-    ## Parameters
-    ## ----------
-
-    ## Returns
-    ## ----------
-
-    ## Examples
-    ## ----------
-    ## """
     n = length(sig)
     if powerOfTwo == true
         nfft = 2^nextPowTwo(n)
@@ -857,75 +875,77 @@ function getPhaseSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=
     return p, freq_array
 end
 
+@doc doc"""
+Substitute the event table triggers listed in `trigList`
+with newTrig
 
-function mergeEventTableCodes!(eventTable::Dict{String,Any}, trigList, newTrig::Integer)
-    ## """
-    ## Substitute the event table triggers listed in trig_list
-    ## with new_trig
+#### Parameters
 
-    ## Parameters
-    ## ----------
-    ## event_table : dict of int arrays
-    ##     The event table
-    ## trig_list : array of ints
-    ##     The list of triggers to substitute
-    ## new_trig : int
-    ##     The new trigger used to substitute the triggers
-    ##     in trig_list
-    ## Returns
-    ## ----------
+* `eventTable::Dict{String,Any}`: The event table.
+* `trigList::AbstractVector{Integer}`: The list of triggers to substitute.
+* `newTrig::Integer`: The new trigger used to substitute the triggers in `trigList`.
 
-    ## Examples
-    ## ----------
-    ## """
-    ## for i=1:length(trigList)
-    ##     eventTable["code"][eventTable["code"] .== trigList[i]] = newTrig
-    ## end
+#### Examples
+
+```julia
+mergeEventTableCodes!(evtTab, [200, 220], 999)
+```
+"""->
+function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String,Any}, trigList::AbstractVector{T}, newTrig::Integer)
     eventTable["code"][findin(eventTable["code"], trigList)] = newTrig
     return
 end
 
+@doc doc"""
+Find the exponent to which 2 should be raise to find the number corresponding to the next power of 2 closest to `x`.
+
+#### Arguments
+
+* `x::Real`
+
+#### Examples
+
+nextPowTwo(6)
+nextPowTwo(511)
+isequal(2^(nextPowTwo(6)), 2^3)
+"""->
 function nextPowTwo(x::Real)
-    ## """
-    
-    ## Parameters
-    ## ----------
-
-    ## Returns
-    ## ----------
-
-    ## Examples
-    ## ----------
-    ## """
     out = int(ceil(log2(x)))
     return out
 end
 
-function removeEpochs!(rec, toRemove)
-    ## """
-    ## Remove epochs from a segmented recording.
+@doc doc"""
+Remove epochs from a segmented recording.
     
-    ## Parameters
-    ## ----------
-    ## rec : dict of 3D arrays
-    ##     The segmented recording
-    ## to_remove : dict of 1D arrays
-    ##     List of epochs to remove for each condition
+#### Parameters
 
-    ## Returns
-    ## ----------
+* `rec::Dict{String,Array{Real,3}}`: The segmented recording
+* `toRemove::Dict{String,Array{P,1}}`: List of epochs to remove for each condition
 
-    ## Examples
-    ## ----------
-    ## """
+#### Examples
+
+```julia
+removeEpochs!(segs, toRemoveDict)
+```
+
+"""->
+function removeEpochs!{T<:Real, P<:Integer}(rec::Dict{String,Array{T,3}}, toRemove::Dict{String,Array{P,1}})
     eventList = collect(keys(rec))
     for i=1:length(eventList)
         code = eventList[i]
         rec[code] = deleteSlice3D(rec[code], toRemove[code], 3)
     end
-    return rec
+    #return rec
 end
 
+@doc doc"""
+
+#### Examples
+
+```julia
+res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
+```
+"""->
 function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array{Int}, minTrigDur::Real)
     recTrigs = eventTable["code"]
     recTrigsStart = eventTable["idx"]
@@ -973,32 +993,22 @@ function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array
     return resInfo
 end
 
-function rerefCnt!(rec, refChan::Integer; channels=nothing)
-    ## """
-    ## Rereference channels in a continuous recording.
+@doc doc"""
+Rereference channels in a continuous recording.
 
-    ## Parameters
-    ## ----------
-    ## rec : 
-    ##     Recording
-    ## ref_channel: int
-    ##     The reference channel (indexing starts from zero).
-    ## channels : list of ints
-    ##     List of channels to be rereferenced (indexing starts from zero).
-  
-    ## Returns
-    ## -------
-    ## rec : an array of floats with dimenions nChannels X nDataPoints
+#### Parameters
+
+* `rec::AbstractMatrix{Real}`: EEG recording.
+* `refChan::Integer`: The reference channel number.
+* `channels::Union(P, AbstractVector{P})`: The channel(s) to be rereferenced.
         
-    ## Examples
-    ## --------
-    ## >>> reref_cnt(rec=dats, channels=[1, 2, 3], ref_channel=4)
-    ## """
+#### Examples
 
-    if channels == nothing
-        nChannels = size(rec)[1]
-        channels = [1:nChannels]
-    end
+```julia
+rerefCnt!(dats, refChan=4, channels=[1, 2, 3])
+```
+"""->
+function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer; channels::Union(P, AbstractVector{P})=[1:size(rec, 1)])
 
     for i=1:length(channels)
         if channels[i] != refChan
@@ -1051,14 +1061,6 @@ function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTa
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
-    ## if eventsList == nothing
-    ##     eventsList = unique(trigs)
-    ## end
-
-    ## if eventsLabelsList == nothing
-    ##     eventsLabelsList = String[string(eventsList[i]) for i=1:length(eventsList)]
-    ## end
-        
 
     epochStartSample = int(round(epochStart*sampRate))
     epochEndSample = int(round(epochEnd*sampRate)) - 1
