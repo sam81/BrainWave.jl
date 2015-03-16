@@ -1,1 +1,3 @@
 `ElectroJulia` is a module containing functions to process electroencephalographic (EEG) recordings with the Julia programming language. The software is in pre-alpha status, it is here in the hope that it may be useful to someone looking into analysing EEG data with Julia. However, currently the software unsupported, and radical API changes can occurr at any time. 
+
+Documentation is available at [http://electrojuliajl.readthedocs.org/en/latest/](http://electrojuliajl.readthedocs.org/en/latest/).
