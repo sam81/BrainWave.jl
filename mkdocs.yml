@@ -1,5 +1,5 @@
 site_name: ElectroJulia.jl
-theme: readthedocs
+theme: united
 pages:
     - ['index.md', 'Introduction']
     - ['API.md', 'Function Reference']

@@ -71,27 +71,15 @@ voltage from each channel of a segmented recording.
 #### Examples
 
 ```julia
-#baseline window has the same duration of pre_dur
+#baseline window has the same duration of preDur
 baselineCorrect(rec, -0.2, 0.2, 512)
-#now with a baseline shorter than pre_dur
+#now with a baseline shorter than preDur
 baselineCorrect(rec, -0.15, 0.2, 512)
 ```
 
 
 **source:**
 [ElectroJulia/src/ElectroJulia.jl:116](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
-
----
-
-#### chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
-    ## Take a dictionary containing in each key a list of segments, and chain these segments
-    ## into chunks of length nChunks
-    ## baselineDur is for determining what is the zero point
-    ## startTime and endTime are given with reference to the zero point
-
-
-**source:**
-[ElectroJulia/src/ElectroJulia.jl:180](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -128,7 +116,7 @@ isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:289](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:319](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -137,7 +125,7 @@ Delete a slice from a 3-dimensional array.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:311](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:341](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -145,19 +133,19 @@ Delete a slice from a 3-dimensional array.
 Remove the mean value from each channel of an EEG recording.
 
 #### Arguments
+
 * `rec::AbstractMatrix{T}`: The EEG recording.
 
 #### Examples
 
-```julia
-x = [1 2 3; 4 5 6]
-detrendEEG!(x)
-```
+    x = [1 2 3; 4 5 6]
+    detrendEEG!(x)
+
     
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:371](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:401](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -166,7 +154,7 @@ detrendEEG!(x)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:464](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:494](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -175,7 +163,7 @@ Filter a continuous EEG recording.
     
 #### Arguments
 
-* rec::AbstractMatrix{Real}`: The nChannelsXnSamples array with the EEG recording.
+* `rec::AbstractMatrix{Real}`: The nChannelsXnSamples array with the EEG recording.
 * `sampRate::Integer`: The EEG recording sampling rate.
 * `filterType::String`:  The filter type., one of "lowpass", "highpass", or "bandpass".
 * `nTaps::Integer`: The number of filter taps.
@@ -192,13 +180,60 @@ Filter a continuous EEG recording.
         
 #### Examples
 
-```julia
-filterContinuous(rec, 2048, "highpass", 512, [30], channels=[0,1,2,3], transitionWidth=0.2)
-```
+
+    filterContinuous!(rec, 2048, "highpass", 512, [30], channels=[0,1,2,3], transitionWidth=0.2)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:406](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:436](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+
+---
+
+#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1}), channels::Union(Q<:Integer, AbstractArray{Q<:Integer, 1}))
+
+Find epochs with voltage values exceeding a given threshold.
+    
+#### Args
+
+* `rec::Dict{String, Array{Real, 3}}`: The segmented recording.
+* `thresh::Union(Real, AbstractVector{Real})`: The threshold value(s).
+* `chans::AbstractVector{Int}`: The indexes of the channels on which to find artefacts.
+* `chanlabels::AbstractVector{String}`: The labels of the channels on which to find artefacts.
+* `chanList::AbstractVector{String}`: The names of all the channels.
+    
+#### Returns
+
+* `segsToReject::Dict{String,Array{Int64,1}}`: dictionary containing the list of segments to reject for each condition.
+    
+#### Notes
+
+If neither channel indexes (`chans`) nor channel labels (`chanLabels`)
+for the channels on which to check artefacts are provided, then artefacts
+will be checked for on all channels.
+If channel labels (`chanLabels`) are given for the channels on which to
+check for artefacts, then an ordered list containing the names of all available
+channels (`chanList`) must be provided as well.
+
+`thresh` should be a list of threshold values, one for each channel to check.
+If `thresh` contains only one value, it is assumed that this is the desired
+threshold for all of the channels to check. If `thresh` contains more than one
+value, its length must match the number of channels to check.
+    
+#### Examples
+
+    # on all channels
+    findArtefactThresh(segs, 65)
+    # on channels 1 and 2
+    findArtefactThresh(segs, 65, [1,2])
+    # on channels FP1 and F4
+    findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
+
+
+
+
+**source:**
+[ElectroJulia/src/ElectroJulia.jl:549](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -210,22 +245,21 @@ Find epochs with voltage values exceeding a given threshold.
 
 * `rec::Dict{String, Array{Real, 3}}`: The segmented recording.
 * `thresh::Union(Real, AbstractVector{Real})`: The threshold value(s).
-* `chans::array of ints`: The indexes of the channels on which to find artefacts.
-* `chanlabels::array of strings`: The labels of the channels on which to find artefacts.
-*  `chanList::array of strings`: The names of all the channels.
+* `chans::AbstractVector{Int}`: The indexes of the channels on which to find artefacts.
+* `chanlabels::AbstractVector{String}`: The labels of the channels on which to find artefacts.
+* `chanList::AbstractVector{String}`: The names of all the channels.
     
 #### Returns
 
+* `segsToReject::Dict{String,Array{Int64,1}}`: dictionary containing the list of segments to reject for each condition.
     
 #### Notes
 
 If neither channel indexes (`chans`) nor channel labels (`chanLabels`)
 for the channels on which to check artefacts are provided, then artefacts
 will be checked for on all channels.
-If channel indexes (`chans`) are provided, then channel labels
-(`chanLabels`) will be ignored.
 If channel labels (`chanLabels`) are given for the channels on which to
-check for artefacts, then a list containing the names of all available
+check for artefacts, then an ordered list containing the names of all available
 channels (`chanList`) must be provided as well.
 
 `thresh` should be a list of threshold values, one for each channel to check.
@@ -235,131 +269,222 @@ value, its length must match the number of channels to check.
     
 #### Examples
 
+    # on all channels
+    findArtefactThresh(segs, 65)
+    # on channels 1 and 2
+    findArtefactThresh(segs, 65, [1,2])
+    # on channels FP1 and F4
+    findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
+
 
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:513](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:549](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getACF(sig, sampRate::Real, maxLag::Real)
-Compute the autocorrelation function
-Arguments:
-sig: the signal for which the autocorrelation should be computed
-samprate: the sampling rate of the signal
-maxLag: the maximum lag (1/f) for which the autocorrelation function should be computed
-normalize: whether the autocorrelation should be scaled between [-1, 1]
+#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, maxLag::Real)
+Compute the autocorrelation function of a 1-dimensional signal.
 
-Returns
-acf: the autocorrelation function
-lags: the time lags for which the autocorrelation function was computed
+#### Arguments:
 
-n = length(sig)
-acfArray = zeros(n*2)
-acfArray[1:n] = sig
-out = zeros(n)
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the signal for which the autocorrelation should be computed.
+* `samprate::Real`: the sampling rate of the signal.
+* `maxLag::Real`: the maximum lag (1/f) for which the autocorrelation function should be computed.
+* `normalize::Bool`: whether the autocorrelation should be scaled between [-1, 1].
+* `window::Function`: The type of window to apply to the signal before computing its ACF (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
 
-maxLagPnt = int(round(maxLag*sampRate))
-if maxLagPnt > n
-maxLagPnt = n
-end
+#### Returns
 
-for i = 1:maxLagPnt
-out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
-end
+* `acf::Array{Real,1}`: the autocorrelation function.
+* `lags::Array{Real,1}`: the time lags for which the autocorrelation function was computed.
 
-lags = [1:maxLagPnt]./sampRate
+### Examples
 
-if normalize == true
-out = out ./ maximum(out)
-end
-return out, lags
+    acf, lags = getACF(sig, sampRate, maxLag, normalize=true, window=hamming)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:597](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:630](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getAutocorrelogram(sig, sampRate::Integer, winLength, overlap, maxLag)
-sig: the signal for which the autocorrelogram should be computed
-sampRate: the sampling rate of the signal
-winLength = the length of the sliding window over which to take the autocorrelations
-overlap: overlap between successive windows, in percent
-maxLag: the maximum lag for which to compute the autocorrelations
-normalize: if `true` divide the output by the maximum ACF value so that ACF values range between 0 and 1
-window: the window to be applied to each segment before computing the ACF, defauls to `rect` which does nothing
+#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real)
+Compute the autocorrelogram of a 1-dimensional array.
+    
+#### Parameters
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})` The signal of which the autocorrelogram should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `winLength::Real`: The length of the window over which to take the ACF, in seconds.
+* `overlap::Real`: The percent of overlap between successive windows (useful for smoothing the autocorrelogram).
+* `maxLag::Real`: the maximum lag (1/f) for which the autocorrelation function should be computed.
+* `normalize::Bool`: whether the autocorrelation should be scaled between [-1, 1].
+* `window::Function`: The type of window to apply to the signal before computing its ACF (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+        
+#### Returns
+
+* `acfMatrix::Array{Real,2}`: the autocorrelogram.
+* `lags::Array{Real,1}`: the ACF lags.
+* `timeArray::Array{Real,1}`: The time axis.
+
+### Examples
+
+    sig = rand(512)
+    acg, lags, t = getAutocorrelogram(sig, 256, 0.02, 30, 0.01)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:629](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:704](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
+#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real)
+Compute the phase spectrum of a 1-dimensional array.
+    
+#### Arguments
+
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: The signal of which the phase spectrum should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `window::Function`: The type of window to apply to the signal before computing its FFT (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+* `powerOfTwo::Bool`: If `true` `sig` will be padded with zeros (if necessary) so that its length is a power of two.
+        
+#### Returns
+
+* `p::Array{Real,1}`: the phase spectrum of the signal.
+* `freqArray::Array{Real,1}`: The FFT frequencies.
+
+#### Examples
+
+    sig = rand(512)
+    p, f = getPhaseSpectrum(sig, 256)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:654](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1138](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclude)
-the 2 has the possibility to exclude extra components, useful for distortion products
-components: a list containing the indexes of the target components
-nCompSide: number of components used for each side band
-n_exclude_side: number of components adjacent to to the target components to exclude
-fft_array: array containing the fft values
+#### getSNR2{T<:Real, R<:Real}(spec::AbstractArray{T<:Real, 1}, freqArr::AbstractArray{R<:Real, 1}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
+Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
+This function is the same as `getSNR`, but it additionaly returns the signal and noise magnitudes separately.
+
+#### Arguments
+
+* `spec::AbstractVector{Real}` The power spectrum of the recording.
+* `freqArr::AbstractVector{Real}`: the FFT frequency array.
+* `sigFreq::Real`: the signal frequency of interest.
+* `nSideComp::Integer`: the number of components adjacent to the signal used to estimate the noise.
+* `nExclude::Integer`: the number of components closest to the signal to exclude from the noise estimate.
+
+#### Returns
+
+* `snr::Real`: The signal-to-noise ratio at the target frequency.
+* `sigMag::Real`: The signal magnitude.
+* `noiseMag::Real`: The noise magnitude.
+
+#### Examples
+
+    snr, sigMag, noiseMag = getSNR2(pspec, freq, 140, 10, 1)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:709](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:996](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getPhaseSpectrum(sig, sampRate::Integer)
+#### getSNR{T<:Real, R<:Real}(spec::AbstractArray{T<:Real, 1}, freqArr::AbstractArray{R<:Real, 1}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
+Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
+
+#### Arguments
+
+* `spec::AbstractVector{Real}` The power spectrum of the recording.
+* `freqArr::AbstractVector{Real}`: the FFT frequency array.
+* `sigFreq::Real`: the signal frequency of interest.
+* `nSideComp::Integer`: the number of components adjacent to the signal used to estimate the noise.
+* `nExclude::Integer`: the number of components closest to the signal to exclude from the noise estimate.
+
+#### Returns
+
+* `snr::Real`: The signal-to-noise ratio at the target frequency.
+
+#### Examples
+
+    getSNR(pspec, freq, 140, 10, 1)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:856](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:962](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
+#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real)
+Compute the spectrogram of a 1-dimensional array.
+    
+#### Parameters
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})` The signal of which the spectrum should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `winLength::Real`: The length of the window over which to take the FFTs, in seconds.
+* `overlap::Real`: The percent of overlap between successive windows (useful for smoothing the spectrogram).
+* `window::Function`: The type of window to apply to the signal before computing its FFT (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+* `powerOfTwo::Bool`: If `true` `sig` will be padded with zeros (if necessary) so that its length is a power of two.
+        
+#### Returns
+
+* `powerMatrix::Array{Real, 2}`: the power spectrum for each time window.
+* `freqArray::Array{Real, 1}`: The frequency axis.
+* `timeArray::Array{Real, 1}`: The time axis.
+
+#### Notes
+
+If the signal length is not a multiple of the window length it is trucated.
+
+#### Examples
+
+    sig = rand(512)
+    spec, f, t = getSpectrogram(sig, 256, 0.02, 30)
+    
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:768](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1035](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
-#### getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
-like getSNR, but return signal and noise magnitude separately
+#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Integer)
+Compute the power spectrum of a 1-dimensional array.
+    
+#### Arguments
+
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: The signal of which the spectrum should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `window::Function`: The type of window to apply to the signal before computing its FFT (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+* `powerOfTwo::Bool`: If `true` `sig` will be padded with zeros (if necessary) so that its length is a power of two.
+        
+#### Returns
+
+* `p::Array{Real,1}`: the power spectrum of the signal.
+* `freqArray::Array{Real,1}`: The FFT frequencies.
+
+#### Examples
+
+    sig = rand(512)
+    p, f = getSpectrum(sig, 256)
 
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:783](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
-
----
-
-#### getSpectrogram(sig, sampRate::Integer, winLength::Real, overlap::Real)
-winLength in seconds
-overlap in percent
-if the signal length is not a multiple of the window length it is trucated
-
-
-**source:**
-[ElectroJulia/src/ElectroJulia.jl:799](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
-
----
-
-#### getSpectrum(sig, sampRate::Integer)
-
-
-**source:**
-[ElectroJulia/src/ElectroJulia.jl:820](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1076](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -381,12 +506,12 @@ mergeEventTableCodes!(evtTab, [200, 220], 999)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:893](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1182](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
 #### nextPowTwo(x::Real)
-Find the exponent to which 2 should be raise to find the number corresponding to the next power of 2 closest to `x`.
+Find the exponent of the next power of 2 closest to `x`.
 
 #### Arguments
 
@@ -394,13 +519,15 @@ Find the exponent to which 2 should be raise to find the number corresponding to
 
 #### Examples
 
+```julia
 nextPowTwo(6)
 nextPowTwo(511)
 isequal(2^(nextPowTwo(6)), 2^3)
+```
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:911](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1202](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -421,7 +548,7 @@ removeEpochs!(segs, toRemoveDict)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:931](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1222](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -435,7 +562,7 @@ res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:948](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1239](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -456,7 +583,7 @@ rerefCnt!(dats, refChan=4, channels=[1, 2, 3])
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1010](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1301](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 
@@ -492,7 +619,7 @@ segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], event
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1056](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:1347](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ## Internal
 ---
@@ -501,7 +628,7 @@ segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], event
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:453](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[ElectroJulia/src/ElectroJulia.jl:483](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
 
 ---
 

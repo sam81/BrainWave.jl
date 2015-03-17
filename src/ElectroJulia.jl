@@ -108,9 +108,9 @@ voltage from each channel of a segmented recording.
 #### Examples
 
 ```julia
-#baseline window has the same duration of pre_dur
+#baseline window has the same duration of preDur
 baselineCorrect(rec, -0.2, 0.2, 512)
-#now with a baseline shorter than pre_dur
+#now with a baseline shorter than preDur
 baselineCorrect(rec, -0.15, 0.2, 512)
 ```
 """->
@@ -172,77 +172,107 @@ function baselineCorrectloop!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineSta
     end
 end
 
-@doc doc"""
-    ## Take a dictionary containing in each key a list of segments, and chain these segments
-    ## into chunks of length nChunks
-    ## baselineDur is for determining what is the zero point
-    ## startTime and endTime are given with reference to the zero point
-"""->
-function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
+## @doc doc"""
+##     ## Take a dictionary containing in each key a list of segments, and chain these segments
+##     ## into chunks of length nChunks
+##     ## baselineDur is for determining what is the zero point
+##     ## startTime and endTime are given with reference to the zero point
 
-    baselinePnts = round(baselineDur * sampRate)
-    startPnt = int(round(startTime*sampRate) + baselinePnts) +1
-    endPnt = int(round(endTime*sampRate) + baselinePnts) 
-    chunkSize = ((endPnt - startPnt)+1)
-    sweepSize = chunkSize * nChunks
+##    Take a dictionary containing in each key a list of segments, and chain these segments
+##     into chunks of length `nChunks`. `baselineDur` is for determining what is the zero point.
+##     `start` and `end` are given with reference to the zero point.
+##     This chaining technique is used to increase the spectral resolution of FFT analyses
+##     of auditory steady-state responses.
 
-    if window != "none"
-        n = chunkSize
-        if window == "hamming"
-            w = hamming(n)
-        elseif window == "hanning"
-            w = hanning(n)
-        elseif window == "blackman"
-            w = blackman(n)
-        elseif window == "bartlett"
-            w = bartlett(n)
-        end
-    end
+##     Parameters
+##     ----------
+##     rec : dict of 3D arrays
+##         The segmented recordings for each experimental condition.
+##     nChunks : int
+##         The number of segments to chain together for each chunk.
+##     sampRate : int
+##         The EEG recording sampling rate.
+##     start : float
+##         Start time of the epoch segments to be chained, in seconds.
+##     end : float
+##         End time of the epoch segments to be chained, in seconds.
+##     baselineDur : float
+##         Duration of the baseline, in seconds.
+
+##     Returns
+##     ----------
+##     eegChained : dict of 2D arrays
+##         The chained recordings for each experimental condition.
+
+##     Examples
+##     ----------
+##     >>> chainSegments(rec, nChunks=20, sampRate=2048, start=0, end=0.5, baselineDur=0.1)
+## """->
+## function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
+
+##     baselinePnts = round(baselineDur * sampRate)
+##     startPnt = int(round(startTime*sampRate) + baselinePnts) +1
+##     endPnt = int(round(endTime*sampRate) + baselinePnts) 
+##     chunkSize = ((endPnt - startPnt)+1)
+##     sweepSize = chunkSize * nChunks
+
+##     if window != "none"
+##         n = chunkSize
+##         if window == "hamming"
+##             w = hamming(n)
+##         elseif window == "hanning"
+##             w = hanning(n)
+##         elseif window == "blackman"
+##             w = blackman(n)
+##         elseif window == "bartlett"
+##             w = bartlett(n)
+##         end
+##     end
     
-    nReps = (String => Array{Int,1})[]
-    eventList = collect(keys(rec))
-    eegChained = (String => Array{eltype(rec[eventList[1]]),2})[]
-    fromeegChainedAve = (String => Array{eltype(rec[eventList[1]]),2})[]
-    for i=1:length(eventList)
-        currCode = eventList[i]
-        eegChained[currCode] = zeros(eltype(rec[eventList[1]]), size(rec[currCode])[1], sweepSize)  #two-dimensional array of zeros
-        #fromeegChainedAve[currCode] = zeros(size(rec[currCode])[1], chunkSize)
-        nReps[currCode] = zeros(Int, nChunks)
-        p = 1
-        k = 1
-        while k <= size(rec[currCode])[3]
-            if p > (nChunks)
-                p = 1
-            end
+##     nReps = (String => Array{Int,1})[]
+##     eventList = collect(keys(rec))
+##     eegChained = (String => Array{eltype(rec[eventList[1]]),2})[]
+##     fromeegChainedAve = (String => Array{eltype(rec[eventList[1]]),2})[]
+##     for i=1:length(eventList)
+##         currCode = eventList[i]
+##         eegChained[currCode] = zeros(eltype(rec[eventList[1]]), size(rec[currCode])[1], sweepSize)  #two-dimensional array of zeros
+##         #fromeegChainedAve[currCode] = zeros(size(rec[currCode])[1], chunkSize)
+##         nReps[currCode] = zeros(Int, nChunks)
+##         p = 1
+##         k = 1
+##         while k <= size(rec[currCode])[3]
+##             if p > (nChunks)
+##                 p = 1
+##             end
             
-            idxChunkStart = ((p-1)*chunkSize)+1
-            idxChunkEnd = (idxChunkStart + chunkSize)-1
-            eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] + rec[currCode][:,startPnt:endPnt, k]
-            nReps[currCode][p] = nReps[currCode][p] + 1
-            #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] + rec[currCode][:,startPnt:endPnt, k]
-            p = p+1 #p is the chunk counter
-            k = k+1 #k is the epoch counter
-        end
-    end
-    for i=1:length(eventList)
-        currCode = eventList[i]
-        for p=1:nChunks
-            idxChunkStart = ((p-1)*chunkSize)+1
-            idxChunkEnd = (idxChunkStart + chunkSize)-1
-            if window == nothing
-                eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] / nReps[currCode][p]
-            else
-                for chn=1:size(eegChained[currCode])[1]
-                    eegChained[currCode][chn,idxChunkStart:idxChunkEnd] = eegChained[currCode][chn,idxChunkStart:idxChunkEnd].*w' / nReps[currCode][p]
+##             idxChunkStart = ((p-1)*chunkSize)+1
+##             idxChunkEnd = (idxChunkStart + chunkSize)-1
+##             eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] + rec[currCode][:,startPnt:endPnt, k]
+##             nReps[currCode][p] = nReps[currCode][p] + 1
+##             #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] + rec[currCode][:,startPnt:endPnt, k]
+##             p = p+1 #p is the chunk counter
+##             k = k+1 #k is the epoch counter
+##         end
+##     end
+##     for i=1:length(eventList)
+##         currCode = eventList[i]
+##         for p=1:nChunks
+##             idxChunkStart = ((p-1)*chunkSize)+1
+##             idxChunkEnd = (idxChunkStart + chunkSize)-1
+##             if window == nothing
+##                 eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] / nReps[currCode][p]
+##             else
+##                 for chn=1:size(eegChained[currCode])[1]
+##                     eegChained[currCode][chn,idxChunkStart:idxChunkEnd] = eegChained[currCode][chn,idxChunkStart:idxChunkEnd].*w' / nReps[currCode][p]
                
-                end
-            end
-        end
-        #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] / sum(nReps[currCode])
-    end
+##                 end
+##             end
+##         end
+##         #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] / sum(nReps[currCode])
+##     end
         
-    return eegChained
-end
+##     return eegChained
+## end
 
 ## function deleteSlice3D(x, toRemove)
 ##     y = similar(x, size(x)[1], size(x)[2], size(x)[3]-length(toRemove))
@@ -359,14 +389,14 @@ end
 Remove the mean value from each channel of an EEG recording.
 
 #### Arguments
+
 * `rec::AbstractMatrix{T}`: The EEG recording.
 
 #### Examples
 
-```julia
-x = [1 2 3; 4 5 6]
-detrendEEG!(x)
-```
+    x = [1 2 3; 4 5 6]
+    detrendEEG!(x)
+
     
 """->
 function detrendEEG!{T<:Real}(rec::AbstractMatrix{T})
@@ -383,7 +413,7 @@ Filter a continuous EEG recording.
     
 #### Arguments
 
-* rec::AbstractMatrix{Real}`: The nChannelsXnSamples array with the EEG recording.
+* `rec::AbstractMatrix{Real}`: The nChannelsXnSamples array with the EEG recording.
 * `sampRate::Integer`: The EEG recording sampling rate.
 * `filterType::String`:  The filter type., one of "lowpass", "highpass", or "bandpass".
 * `nTaps::Integer`: The number of filter taps.
@@ -400,9 +430,9 @@ Filter a continuous EEG recording.
         
 #### Examples
 
-```julia
-filterContinuous(rec, 2048, "highpass", 512, [30], channels=[0,1,2,3], transitionWidth=0.2)
-```
+
+    filterContinuous!(rec, 2048, "highpass", 512, [30], channels=[0,1,2,3], transitionWidth=0.2)
+
 """->
 function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(P, AbstractVector{P});
                                              channels::Union(Q, AbstractVector{Q})=[1:size(rec,1)], transitionWidth::Real=0.2)
@@ -442,8 +472,8 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
    
     for i=1:nChannels
         if in(i, channels) == true
-            rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:])[2]), b, "same")
-            rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:])[2]),1), b, "same"), 1)
+            rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
+            rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:], 2)),1), b, "same"), 1)
         end
     end
     return rec
@@ -484,22 +514,21 @@ Find epochs with voltage values exceeding a given threshold.
 
 * `rec::Dict{String, Array{Real, 3}}`: The segmented recording.
 * `thresh::Union(Real, AbstractVector{Real})`: The threshold value(s).
-* `chans::array of ints`: The indexes of the channels on which to find artefacts.
-* `chanlabels::array of strings`: The labels of the channels on which to find artefacts.
-*  `chanList::array of strings`: The names of all the channels.
+* `chans::AbstractVector{Int}`: The indexes of the channels on which to find artefacts.
+* `chanlabels::AbstractVector{String}`: The labels of the channels on which to find artefacts.
+* `chanList::AbstractVector{String}`: The names of all the channels.
     
 #### Returns
 
+* `segsToReject::Dict{String,Array{Int64,1}}`: dictionary containing the list of segments to reject for each condition.
     
 #### Notes
 
 If neither channel indexes (`chans`) nor channel labels (`chanLabels`)
 for the channels on which to check artefacts are provided, then artefacts
 will be checked for on all channels.
-If channel indexes (`chans`) are provided, then channel labels
-(`chanLabels`) will be ignored.
 If channel labels (`chanLabels`) are given for the channels on which to
-check for artefacts, then a list containing the names of all available
+check for artefacts, then an ordered list containing the names of all available
 channels (`chanList`) must be provided as well.
 
 `thresh` should be a list of threshold values, one for each channel to check.
@@ -509,24 +538,29 @@ value, its length must match the number of channels to check.
     
 #### Examples
 
+    # on all channels
+    findArtefactThresh(segs, 65)
+    # on channels 1 and 2
+    findArtefactThresh(segs, 65, [1,2])
+    # on channels FP1 and F4
+    findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
+
 
 """ ->
-function findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T, 3}}, thresh::Union(P, AbstractVector{P}); chans=nothing, chanLabels=nothing, chanList=nothing)
+function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T, 3}}, thresh::Union(P, AbstractVector{P}),
+                                                          channels::Union(Q, AbstractVector{Q})=[1:size(rec[collect(keys(rec))[1]], 1)])
 
     eventList = collect(keys(rec))
-        
-    if chans != nothing
-        channels = chans
-    elseif chanLabels != nothing
-        channels = (Int)[]
-        for i=1:length(chanLabels)
-            push!(channels, find(chanList .== chanLabels[i])[1])
-        end
-    else
-        channels = [1:size(rec[eventList[1]])[1]] #assume n channels the same for all dict entries
-    end
-
-        
+    ## if chans != nothing
+    ##     channels = chans
+    ## elseif chanLabels != nothing
+    ##     channels = (Int)[]
+    ##     for i=1:length(chanLabels)
+    ##         push!(channels, find(chanList .== chanLabels[i])[1])
+    ##     end
+    ## else
+    ##     channels = [1:size(rec[eventList[1]])[1]] #assume n channels the same for all dict entries
+    ## end
     
     if length(channels) != length(thresh)
         if length(thresh) == 1
@@ -562,51 +596,77 @@ function findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T, 3}}, th
     
 end
 
+function findArtefactThresh{T<:Real, P<:Real, R<:String, S<:String}(rec::Dict{String, Array{T, 3}}, thresh::Union(P, AbstractVector{P}), chanLabels::AbstractVector{S}, chanList::AbstractVector{R})
+    channels = (Int)[]
+    for i=1:length(chanLabels)
+        push!(channels, find(chanList .== chanLabels[i])[1])
+    end
+    segsToReject = findArtefactThresh(rec, thresh, channels)
+    return segsToReject
+end
+
+
 @doc doc"""
-Compute the autocorrelation function
-Arguments:
-sig: the signal for which the autocorrelation should be computed
-samprate: the sampling rate of the signal
-maxLag: the maximum lag (1/f) for which the autocorrelation function should be computed
-normalize: whether the autocorrelation should be scaled between [-1, 1]
+Compute the autocorrelation function of a 1-dimensional signal.
 
-Returns
-acf: the autocorrelation function
-lags: the time lags for which the autocorrelation function was computed
+#### Arguments:
 
-n = length(sig)
-acfArray = zeros(n*2)
-acfArray[1:n] = sig
-out = zeros(n)
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the signal for which the autocorrelation should be computed.
+* `samprate::Real`: the sampling rate of the signal.
+* `maxLag::Real`: the maximum lag (1/f) for which the autocorrelation function should be computed.
+* `normalize::Bool`: whether the autocorrelation should be scaled between [-1, 1].
+* `window::Function`: The type of window to apply to the signal before computing its ACF (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
 
-maxLagPnt = int(round(maxLag*sampRate))
-if maxLagPnt > n
-maxLagPnt = n
-end
+#### Returns
 
-for i = 1:maxLagPnt
-out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
-end
+* `acf::Array{Real,1}`: the autocorrelation function.
+* `lags::Array{Real,1}`: the time lags for which the autocorrelation function was computed.
 
-lags = [1:maxLagPnt]./sampRate
+### Examples
 
-if normalize == true
-out = out ./ maximum(out)
-end
-return out, lags
+    acf, lags = getACF(sig, sampRate, maxLag, normalize=true, window=hamming)
+
 """->
-function getACF(sig, sampRate::Real, maxLag::Real; normalize=true, window=rect)
+function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+##     """
+## n = length(sig)
+## acfArray = zeros(n*2)
+## acfArray[1:n] = sig
+## out = zeros(n)
 
+## maxLagPnt = int(round(maxLag*sampRate))
+## if maxLagPnt > n
+## maxLagPnt = n
+## end
 
+## for i = 1:maxLagPnt
+## out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
+## end
+
+## lags = [1:maxLagPnt]./sampRate
+
+## if normalize == true
+## out = out ./ maximum(out)
+## end
+## return out, lags
+## """
+
+    if ndims(sig) > 1
+        if in(1, size(sig)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        sig = vec(sig)
+    end
     n = length(sig)
     w = window(n)
-    sig = sig.*w'
+    sig = sig.*w
     
     maxLagPnt = int(round(maxLag*sampRate))
     if maxLagPnt > n
         maxLagPnt = n
     end
-    out = xcorr(vec(sig), vec(sig))[n:n+maxLagPnt-1]
+    out = xcorr(sig, sig)[n:n+maxLagPnt-1]
 
     lags = [1:maxLagPnt]./sampRate
     
@@ -614,22 +674,35 @@ function getACF(sig, sampRate::Real, maxLag::Real; normalize=true, window=rect)
         out = out ./ maximum(out)
     end
     return out, lags
-
     
 end
 
 @doc doc"""
-sig: the signal for which the autocorrelogram should be computed
-sampRate: the sampling rate of the signal
-winLength = the length of the sliding window over which to take the autocorrelations
-overlap: overlap between successive windows, in percent
-maxLag: the maximum lag for which to compute the autocorrelations
-normalize: if `true` divide the output by the maximum ACF value so that ACF values range between 0 and 1
-window: the window to be applied to each segment before computing the ACF, defauls to `rect` which does nothing
-"""->
-function getAutocorrelogram(sig, sampRate::Integer, winLength, overlap, maxLag; normalize=true, window=rect)
-
+Compute the autocorrelogram of a 1-dimensional array.
     
+#### Parameters
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})` The signal of which the autocorrelogram should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `winLength::Real`: The length of the window over which to take the ACF, in seconds.
+* `overlap::Real`: The percent of overlap between successive windows (useful for smoothing the autocorrelogram).
+* `maxLag::Real`: the maximum lag (1/f) for which the autocorrelation function should be computed.
+* `normalize::Bool`: whether the autocorrelation should be scaled between [-1, 1].
+* `window::Function`: The type of window to apply to the signal before computing its ACF (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+        
+#### Returns
+
+* `acfMatrix::Array{Real,2}`: the autocorrelogram.
+* `lags::Array{Real,1}`: the ACF lags.
+* `timeArray::Array{Real,1}`: The time axis.
+
+### Examples
+
+    sig = rand(512)
+    acg, lags, t = getAutocorrelogram(sig, 256, 0.02, 30, 0.01)
+
+"""->
+function getAutocorrelogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
     winLengthPnt = floor(winLength * sampRate)
     step = winLengthPnt - round(winLengthPnt * overlap / 100)
     ind = [1:step:length(sig) - winLengthPnt]
@@ -650,123 +723,244 @@ function getAutocorrelogram(sig, sampRate::Integer, winLength, overlap, maxLag; 
     return acfMatrix, lags, timeArray3
 end
 
-@doc doc"""
-"""->
-function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
+## @doc doc"""
+## Compute signal to noise ratio (SNR) of one or more signals from a fast
+## fourier transform (FFT) and test the SNR significance using an F-test.
 
-    cnds = collect(keys(ffts))
-    compIdx = (Int)[]
-    for freq in freqs
-        thisIdx = find(abs(ffts[cnds[1]]["freq"] .- freq) .== minimum(abs(ffts[cnds[1]]["freq"] .- freq)))
-        append!(compIdx, thisIdx)
-    end
-    sideBandsIdx = (Int)[]
-    idxProtect = (Int)[]
-    fftVals = (String => Any)[]
-    fRatio = (String => Any)[]
-    dfNum = 2
-    dfDenom = 2*(nSideComp*2) -1
-    for cnd in cnds
-        fRatio[cnd] = (String => Array{Float64, 1})[]
-        fftVals[cnd] = (String => Array{Float64, 1})[]
-        fRatio[cnd]["F"] = []
-        fRatio[cnd]["pval"] = []
-        fftVals[cnd]["sigPow"] = []
-        fftVals[cnd]["noisePow"] = []
-        sideBands, sideBandsIdx, idxProtect = getNoiseSidebands(freqs, nSideComp, nExcludedComp, ffts[cnd], otherExclude)
-        for c=1:length(compIdx)
-            noisePow = mean(sideBands[c])
-            sigPow = ffts[cnd]["mag"][compIdx[c]]
-            thisF =  sigPow/ noisePow
-            fftVals[cnd]["sigPow"] = vcat(fftVals[cnd]["sigPow"], sigPow)
-            fftVals[cnd]["noisePow"] = vcat(fftVals[cnd]["noisePow"], noisePow)
-            fRatio[cnd]["F"] = vcat(fRatio[cnd]["F"], thisF)
-            fRatio[cnd]["pval"] = vcat(fRatio[cnd]["pval"], pdf(FDist(dfNum, dfDenom), thisF))
-        end
-    end
-    minSideFreq = (FloatingPoint)[]
-    maxSideFreq = (FloatingPoint)[]
-    for c=1:length(compIdx)
-        push!(minSideFreq, ffts[cnds[1]]["freq"][minimum(sideBandsIdx[c])])
-        push!(maxSideFreq, ffts[cnds[1]]["freq"][maximum(sideBandsIdx[c])])
-    end
-    res = (String => Any)["fftVals" => fftVals,
-                          "fRatio" => fRatio,
-                          "compIdx" => compIdx,
-                          "sideBandsIdx" => sideBandsIdx,
-                          "excludedIdx"  => idxProtect,
-                          "minSideFreq" => minSideFreq,
-                          "maxSideFreq" => maxSideFreq]
-    return res
-end
+## #### Parameters
 
-@doc doc"""
-the 2 has the possibility to exclude extra components, useful for distortion products
-components: a list containing the indexes of the target components
-nCompSide: number of components used for each side band
-n_exclude_side: number of components adjacent to to the target components to exclude
-fft_array: array containing the fft values
-"""->
-function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclude)
+##     ffts : dict 
+##         The FFTs for each experimental condition. The FFTs should be in the same
+##         format as returned by the :func:`getSpectrum` function, i.e. a dictionary with
+##         `freq` and `mag` keys.
+##     freqs : array of floats
+##         The frequencies of the signals.
+##     nSideComp : int
+##         The number of components adjacent to each side of the signal components
+##         from which to estimate the noise power. `nSideComp` above and `nSideComp`
+##         below each signal will be used for each noise-power estimate. In other words,
+##         the noise power around each signal component will be estimated from `2*nSideComp`
+##         components.
+##     nExcludedComp: int
+##         To avoid that spectral leaks from the signal affect the noise-power estimate,
+##         the `nExcludedComp` components just above and the `nExcludeComp` components just
+##         below the signal will not be used for estimating noise power.
+##     otherExclude : array of ints
+##         The frequencies of other components to exclude from the computation of the noise power.
+##         This may be useful to exclude components corresponding to distortion products
+##         generated by the signal. The `nExcludedComp` components just above and the
+##         `nExcludeComp` components just below each component in `otherExclude` will
+##         also be excluded.
 
-    compIdx = (Int)[]
-    for freq in freqs
-        thisIdx = find(abs(fftDict["freq"] .- freq) .== minimum(abs(fftDict["freq"] .- freq)))
-        append!(compIdx, thisIdx)
-    end
+## #### Returns
+
+##     res : dict with the following keys
+##        - fftVals : dict
+##           The signal and noise power for each component and experimental condition.
+##           Each key of `fftVals` corresponds to an experimental condition. For each
+##           experimental condition there is a dictionary with keys `noisePow` and `sigPow`
+##           that list the noise and signal power for each component given in `freqs`.
+##        - fRatio :
+##           The F and corresponding p-value for each component and experimental condition.
+##           Each key of `fRatio` corresponds to an experimental condition. For each
+##           experimental condition there is a dictionary with keys `F` and `pval`
+##           that list the F and p value for each component given in `freqs`.
+##        - compIdx : list
+##           The indexes of the signal frequencies in the FFT array.
+##        - sideBandsIdx : list
+##           The indexes of the noise side bands in the FFT array.
+##           A separate sub-list is returned for each component specified in `freqs`. 
+##        - excludedIdx : list
+##           The indexes of the components excluded from the noise side bands.
+##        - minSideFreq : list
+##           For each signal, the lowest frequency of the noise bands.
+##        - maxSideFreq : list
+##           For each signal, the highest frequency of the noise bands.
+        
+## #### Examples
+
+##     getFRatios(ffts=ffts, freqs=[30, 75], nSideComp=30, nExcludedComp=1, otherExclude=[25, 68])
+
+## """->
+## function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
+
+##     cnds = collect(keys(ffts))
+##     compIdx = (Int)[]
+##     for freq in freqs
+##         thisIdx = find(abs(ffts[cnds[1]]["freq"] .- freq) .== minimum(abs(ffts[cnds[1]]["freq"] .- freq)))
+##         append!(compIdx, thisIdx)
+##     end
+##     sideBandsIdx = (Int)[]
+##     idxProtect = (Int)[]
+##     fftVals = (String => Any)[]
+##     fRatio = (String => Any)[]
+##     dfNum = 2
+##     dfDenom = 2*(nSideComp*2) -1
+##     for cnd in cnds
+##         fRatio[cnd] = (String => Array{Float64, 1})[]
+##         fftVals[cnd] = (String => Array{Float64, 1})[]
+##         fRatio[cnd]["F"] = []
+##         fRatio[cnd]["pval"] = []
+##         fftVals[cnd]["sigPow"] = []
+##         fftVals[cnd]["noisePow"] = []
+##         sideBands, sideBandsIdx, idxProtect = getNoiseSidebands(freqs, nSideComp, nExcludedComp, ffts[cnd], otherExclude)
+##         for c=1:length(compIdx)
+##             noisePow = mean(sideBands[c])
+##             sigPow = ffts[cnd]["mag"][compIdx[c]]
+##             thisF =  sigPow/ noisePow
+##             fftVals[cnd]["sigPow"] = vcat(fftVals[cnd]["sigPow"], sigPow)
+##             fftVals[cnd]["noisePow"] = vcat(fftVals[cnd]["noisePow"], noisePow)
+##             fRatio[cnd]["F"] = vcat(fRatio[cnd]["F"], thisF)
+##             fRatio[cnd]["pval"] = vcat(fRatio[cnd]["pval"], pdf(FDist(dfNum, dfDenom), thisF))
+##         end
+##     end
+##     minSideFreq = (FloatingPoint)[]
+##     maxSideFreq = (FloatingPoint)[]
+##     for c=1:length(compIdx)
+##         push!(minSideFreq, ffts[cnds[1]]["freq"][minimum(sideBandsIdx[c])])
+##         push!(maxSideFreq, ffts[cnds[1]]["freq"][maximum(sideBandsIdx[c])])
+##     end
+##     res = (String => Any)["fftVals" => fftVals,
+##                           "fRatio" => fRatio,
+##                           "compIdx" => compIdx,
+##                           "sideBandsIdx" => sideBandsIdx,
+##                           "excludedIdx"  => idxProtect,
+##                           "minSideFreq" => minSideFreq,
+##                           "maxSideFreq" => maxSideFreq]
+##     return res
+## end
+
+## @doc doc"""
+## the 2 has the possibility to exclude extra components, useful for distortion products
+## components: a list containing the indexes of the target components
+## nCompSide: number of components used for each side band
+## n_exclude_side: number of components adjacent to to the target components to exclude
+## fft_array: array containing the fft values
+
+##     Given one or more signal frequencies, get, for each signal frequency, the 
+##     power in frequency bins adjacent to the signal frequency. The results can be used to
+##     estimate *local* noise in signal-to-noise-ratio computations.
+
+##     Parameters
+##     ----------
+##     componentsFreq : list of floats
+##         The frequencies of the signal components.
+##     nCompSide : int
+##         The number of components adjacent to each side of the signal components
+##         from which to estimate the noise power. `nSideComp` above and `nSideComp`
+##         below each signal will be used for each noise-power estimate. In other words,
+##         the noise power around each signal component will be estimated from `2*nSideComp`
+##         components.
+##     nExcludedComp : int
+##         To avoid that spectral leaks from the signal affect the noise-power estimate,
+##         the `nExcludedComp` components just above and the `nExcludedComp` components just
+##         below the signal will not be used for estimating noise power.
+##     FFTDict: dict with the following keys
+##        - mag : array of floats
+##            The array containing the FFT magnitude values.
+##        - freq : array of floats
+##            The array containing the FFT frequencies.
+##     otherExclude : array of ints
+##         The frequencies of other components to exclude from the computation of the noise power.
+##         This may be useful to exclude components corresponding to distortion products
+##         generated by the signal. The `nExcludedComp` components just above and the
+##         `nExcludedComp` components just below each component in `otherExclude` will
+##         also be excluded.
+
+##     Returns
+##     ----------
+##     noiseBands : list
+##         The spectral magnitude of the noise bands. A separate sub-list is returned for
+##         each component specified in `freqs`. 
+##     noiseBandsIdx : list
+##         The indexes of the frequency bins in `fftDict` corresponding to the noise bands.
+##         A separate sub-list is returned for each component specified in `freqs`. 
+##     idxProtect : list
+##         The indexes of the frequency bins in `fftDict` that were excluded from
+##         the noise power computation.
     
-    idxProtect = []; idxProtect = vcat(idxProtect, compIdx)
-    if otherExclude != nothing
-        otherExcludeIdx = (Int)[]
-        for i=1:length(otherExclude)
-            append!(otherExcludeIdx, find(abs(fftDict["freq"] .- otherExclude[i]) .== minimum(abs(fftDict["freq"] .- otherExclude[i]))))
-        end
-        idxProtect = vcat(idxProtect, otherExcludeIdx)
-    end
-    
-    for i=1:nExcludedComp
-        idxProtect = vcat(idxProtect, compIdx .+ i)
-        idxProtect = vcat(idxProtect, compIdx .- i)
-        for j=1:length(otherExclude)
-            push!(idxProtect, otherExcludeIdx[j] .- i)
-            push!(idxProtect, otherExcludeIdx[j] .+ i)
-        end
-    end
-    idxProtect = sort(idxProtect)
+##     Examples
+##     ----------
+##     >>> getNoiseSidebands(compIdx=[40, 44], nSideComp=30, nExcludedComp=2, FFTDict=ffts, otherExclude=[36, 42])
+## """->
+## function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclude)
 
-    noiseBands = (Any)[]
-    noiseBandsIdx = (Any)[]
-    for i=1:length(compIdx)
-        loSide = []; hiSide = []
-        loSideIdx = (Int)[]; hiSideIdx = (Int)[]
-        counter = 1
-        while length(hiSide) < nCompSide
-            currIdx = compIdx[i] + nExcludedComp + counter
-            if in(currIdx, idxProtect) == false
-                hiSide = vcat(hiSide, fftDict["mag"][currIdx])
-                push!(hiSideIdx, currIdx)
-            end
-            counter = counter + 1
-        end
-        counter = 1
-        while length(loSide) < nCompSide
-            currIdx = compIdx[i] - nExcludedComp - counter
-            if in(currIdx, idxProtect) == false
-                loSide = vcat(loSide, fftDict["mag"][currIdx])
-                push!(loSideIdx, currIdx)
-            end
-            counter = counter + 1
-        end
-        push!(noiseBands, vcat(loSide, hiSide))
-        push!(noiseBandsIdx, vcat(loSideIdx, hiSideIdx))
-        #noiseBands = vcat(noiseBands, loSide+hiSide)
-    end
-    return noiseBands, noiseBandsIdx, idxProtect
-end
+##     compIdx = (Int)[]
+##     for freq in freqs
+##         thisIdx = find(abs(fftDict["freq"] .- freq) .== minimum(abs(fftDict["freq"] .- freq)))
+##         append!(compIdx, thisIdx)
+##     end
+    
+##     idxProtect = []; idxProtect = vcat(idxProtect, compIdx)
+##     if otherExclude != nothing
+##         otherExcludeIdx = (Int)[]
+##         for i=1:length(otherExclude)
+##             append!(otherExcludeIdx, find(abs(fftDict["freq"] .- otherExclude[i]) .== minimum(abs(fftDict["freq"] .- otherExclude[i]))))
+##         end
+##         idxProtect = vcat(idxProtect, otherExcludeIdx)
+##     end
+    
+##     for i=1:nExcludedComp
+##         idxProtect = vcat(idxProtect, compIdx .+ i)
+##         idxProtect = vcat(idxProtect, compIdx .- i)
+##         for j=1:length(otherExclude)
+##             push!(idxProtect, otherExcludeIdx[j] .- i)
+##             push!(idxProtect, otherExcludeIdx[j] .+ i)
+##         end
+##     end
+##     idxProtect = sort(idxProtect)
+
+##     noiseBands = (Any)[]
+##     noiseBandsIdx = (Any)[]
+##     for i=1:length(compIdx)
+##         loSide = []; hiSide = []
+##         loSideIdx = (Int)[]; hiSideIdx = (Int)[]
+##         counter = 1
+##         while length(hiSide) < nCompSide
+##             currIdx = compIdx[i] + nExcludedComp + counter
+##             if in(currIdx, idxProtect) == false
+##                 hiSide = vcat(hiSide, fftDict["mag"][currIdx])
+##                 push!(hiSideIdx, currIdx)
+##             end
+##             counter = counter + 1
+##         end
+##         counter = 1
+##         while length(loSide) < nCompSide
+##             currIdx = compIdx[i] - nExcludedComp - counter
+##             if in(currIdx, idxProtect) == false
+##                 loSide = vcat(loSide, fftDict["mag"][currIdx])
+##                 push!(loSideIdx, currIdx)
+##             end
+##             counter = counter + 1
+##         end
+##         push!(noiseBands, vcat(loSide, hiSide))
+##         push!(noiseBandsIdx, vcat(loSideIdx, hiSideIdx))
+##         #noiseBands = vcat(noiseBands, loSide+hiSide)
+##     end
+##     return noiseBands, noiseBandsIdx, idxProtect
+## end
 
 @doc doc"""
+Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
+
+#### Arguments
+
+* `spec::AbstractVector{Real}` The power spectrum of the recording.
+* `freqArr::AbstractVector{Real}`: the FFT frequency array.
+* `sigFreq::Real`: the signal frequency of interest.
+* `nSideComp::Integer`: the number of components adjacent to the signal used to estimate the noise.
+* `nExclude::Integer`: the number of components closest to the signal to exclude from the noise estimate.
+
+#### Returns
+
+* `snr::Real`: The signal-to-noise ratio at the target frequency.
+
+#### Examples
+
+    getSNR(pspec, freq, 140, 10, 1)
+
 """->
-function getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
+function getSNR{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
 
     sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
@@ -778,10 +972,29 @@ function getSNR(spec, freqArr, sigFreq, nSideComp, nExclude)
 end
 
 @doc doc"""
-like getSNR, but return signal and noise magnitude separately
+Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
+This function is the same as `getSNR`, but it additionaly returns the signal and noise magnitudes separately.
+
+#### Arguments
+
+* `spec::AbstractVector{Real}` The power spectrum of the recording.
+* `freqArr::AbstractVector{Real}`: the FFT frequency array.
+* `sigFreq::Real`: the signal frequency of interest.
+* `nSideComp::Integer`: the number of components adjacent to the signal used to estimate the noise.
+* `nExclude::Integer`: the number of components closest to the signal to exclude from the noise estimate.
+
+#### Returns
+
+* `snr::Real`: The signal-to-noise ratio at the target frequency.
+* `sigMag::Real`: The signal magnitude.
+* `noiseMag::Real`: The noise magnitude.
+
+#### Examples
+
+    snr, sigMag, noiseMag = getSNR2(pspec, freq, 140, 10, 1)
 
 """->
-function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
+function getSNR2{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
    
     sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
@@ -793,11 +1006,34 @@ function getSNR2(spec, freqArr, sigFreq, nSideComp, nExclude)
 end
 
 @doc doc"""
-winLength in seconds
-overlap in percent
-if the signal length is not a multiple of the window length it is trucated
+Compute the spectrogram of a 1-dimensional array.
+    
+#### Parameters
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})` The signal of which the spectrum should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `winLength::Real`: The length of the window over which to take the FFTs, in seconds.
+* `overlap::Real`: The percent of overlap between successive windows (useful for smoothing the spectrogram).
+* `window::Function`: The type of window to apply to the signal before computing its FFT (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+* `powerOfTwo::Bool`: If `true` `sig` will be padded with zeros (if necessary) so that its length is a power of two.
+        
+#### Returns
+
+* `powerMatrix::Array{Real, 2}`: the power spectrum for each time window.
+* `freqArray::Array{Real, 1}`: The frequency axis.
+* `timeArray::Array{Real, 1}`: The time axis.
+
+#### Notes
+
+If the signal length is not a multiple of the window length it is trucated.
+
+#### Examples
+
+    sig = rand(512)
+    spec, f, t = getSpectrogram(sig, 256, 0.02, 30)
+    
 """->
-function getSpectrogram(sig, sampRate::Integer, winLength::Real, overlap::Real; window=rect, powerOfTwo::Bool=false)
+function getSpectrogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real; window::Function=rect, powerOfTwo::Bool=false)
     winLengthPnt = floor(winLength * sampRate)
     
     step = winLengthPnt - round(winLengthPnt * overlap / 100)
@@ -817,8 +1053,34 @@ function getSpectrogram(sig, sampRate::Integer, winLength::Real, overlap::Real; 
 end
 
 @doc doc"""
+Compute the power spectrum of a 1-dimensional array.
+    
+#### Arguments
+
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: The signal of which the spectrum should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `window::Function`: The type of window to apply to the signal before computing its FFT (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+* `powerOfTwo::Bool`: If `true` `sig` will be padded with zeros (if necessary) so that its length is a power of two.
+        
+#### Returns
+
+* `p::Array{Real,1}`: the power spectrum of the signal.
+* `freqArray::Array{Real,1}`: The FFT frequencies.
+
+#### Examples
+
+    sig = rand(512)
+    p, f = getSpectrum(sig, 256)
+
 """->
-function getSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false)
+function getSpectrum{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Integer; window::Function=rect, powerOfTwo::Bool=false)
+    if ndims(sig) > 1
+        if in(1, size(sig)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        sig = vec(sig)
+    end
     n = length(sig)
     if powerOfTwo == true
         nfft = 2^nextPowTwo(n)
@@ -826,7 +1088,7 @@ function getSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false
         nfft = n
     end
     w = window(n)
-    sig = sig.*w'
+    sig = sig.*w
     
     p = fft(sig)#, nfft) # take the fourier transform
     
@@ -846,15 +1108,42 @@ function getSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false
         p[2:(end-1)] = p[2:(end-1)] * 2 # we"ve got even number of points fft
     end
 
-    freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
+    freqArray = [0:(nUniquePts-1)] * (sampRate / nfft)
     #x = (String => Array{Float64,1})[]
     #x["freq"] = freq_array; x["mag"] = p
-    return p, freq_array
+    return p, freqArray
 end
 
 @doc doc"""
+Compute the phase spectrum of a 1-dimensional array.
+    
+#### Arguments
+
+* `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: The signal of which the phase spectrum should be computed.
+* `sampRate::Real`: The sampling rate of the signal.
+* `window::Function`: The type of window to apply to the signal before computing its FFT (see DSP.jl).
+                      Choose `rect` if you don't want to apply any window.
+* `powerOfTwo::Bool`: If `true` `sig` will be padded with zeros (if necessary) so that its length is a power of two.
+        
+#### Returns
+
+* `p::Array{Real,1}`: the phase spectrum of the signal.
+* `freqArray::Array{Real,1}`: The FFT frequencies.
+
+#### Examples
+
+    sig = rand(512)
+    p, f = getPhaseSpectrum(sig, 256)
+
 """->
-function getPhaseSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=false)
+function getPhaseSpectrum{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real; window::Function=rect, powerOfTwo::Bool=false)
+    if ndims(sig) > 1
+        if in(1, size(sig)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        sig = vec(sig)
+    end
+    
     n = length(sig)
     if powerOfTwo == true
         nfft = 2^nextPowTwo(n)
@@ -870,9 +1159,9 @@ function getPhaseSpectrum(sig, sampRate::Integer; window=rect, powerOfTwo::Bool=
     p = p[1:nUniquePts]
   
     p = angle(p)
-    freq_array = [0:(nUniquePts-1)] * (sampRate / nfft)
+    freqArray = [0:(nUniquePts-1)] * (sampRate / nfft)
  
-    return p, freq_array
+    return p, freqArray
 end
 
 @doc doc"""
@@ -897,7 +1186,7 @@ function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String,Any}, trigLis
 end
 
 @doc doc"""
-Find the exponent to which 2 should be raise to find the number corresponding to the next power of 2 closest to `x`.
+Find the exponent of the next power of 2 closest to `x`.
 
 #### Arguments
 
@@ -905,9 +1194,11 @@ Find the exponent to which 2 should be raise to find the number corresponding to
 
 #### Examples
 
+```julia
 nextPowTwo(6)
 nextPowTwo(511)
 isequal(2^(nextPowTwo(6)), 2^3)
+```
 """->
 function nextPowTwo(x::Real)
     out = int(ceil(log2(x)))
