@@ -135,11 +135,12 @@ Delete a slice from a 3-dimensional array.
     x = reshape([1:27], 3,3,3)
     deleteSlice3D(x, 2, 1)
     deleteSlice3D(x, [2,3], 3)
+    isequal(deleteSlice3D(x, [2,3], 3), x[:,:, [1]])
 
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:345](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:346](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -159,7 +160,7 @@ Remove the mean value from each channel of an EEG recording.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:384](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:385](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -188,7 +189,7 @@ Convolve two 1-dimensional arrays using the FFT.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:497](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:498](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -220,7 +221,7 @@ Filter a continuous EEG recording.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:419](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:420](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -267,7 +268,7 @@ value, its length must match the number of channels to check.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:552](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:553](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -314,7 +315,7 @@ value, its length must match the number of channels to check.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:552](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:553](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -342,7 +343,7 @@ Compute the autocorrelation function of a 1-dimensional signal.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:633](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:634](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -373,7 +374,7 @@ Compute the autocorrelogram of a 1-dimensional array.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:707](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:708](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -401,7 +402,7 @@ Compute the phase spectrum of a 1-dimensional array.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1141](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1142](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -430,7 +431,7 @@ This function is the same as `getSNR`, but it additionaly returns the signal and
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:999](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1000](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -456,7 +457,7 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:965](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:966](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -490,7 +491,7 @@ If the signal length is not a multiple of the window length it is trucated.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1038](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1039](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -518,7 +519,7 @@ Compute the power spectrum of a 1-dimensional array.
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1079](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1080](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -540,7 +541,7 @@ mergeEventTableCodes!(evtTab, [200, 220], 999)
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1185](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1186](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -561,7 +562,7 @@ isequal(2^(nextPowTwo(6)), 2^3)
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1205](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1206](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -582,7 +583,7 @@ removeEpochs!(segs, toRemoveDict)
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1225](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1226](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -596,7 +597,7 @@ res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1242](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1243](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -617,7 +618,7 @@ rerefCnt!(dats, refChan=4, channels=[1, 2, 3])
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1304](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1305](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -653,7 +654,7 @@ segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], event
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:1350](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1351](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ## Internal
 ---
@@ -662,7 +663,7 @@ segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], event
 
 
 **source:**
-[BrainWave/src/BrainWave.jl:466](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:467](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 

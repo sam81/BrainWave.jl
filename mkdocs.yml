@@ -2,5 +2,6 @@ site_name: BrainWave.jl
 theme: united
 pages:
     - ['index.md', 'Introduction']
+    - ['tutorial.md', 'Tutorial']
     - ['API.md', 'Function Reference']
 
