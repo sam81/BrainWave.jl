@@ -341,6 +341,7 @@ Delete a slice from a 3-dimensional array.
     x = reshape([1:27], 3,3,3)
     deleteSlice3D(x, 2, 1)
     deleteSlice3D(x, [2,3], 3)
+    isequal(deleteSlice3D(x, [2,3], 3), x[:,:, [1]])
 
 """->
 function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union(P, AbstractVector{P}), axis::Integer)
