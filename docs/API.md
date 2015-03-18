@@ -1,4 +1,4 @@
-# ElectroJulia
+# BrainWave
 
 ## Exported
 ---
@@ -19,13 +19,12 @@ from which it was obtained.
 
 #### Examples
 
-```julia
-aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
-```
+    aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:38](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:37](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -44,13 +43,13 @@ Average the epochs of a segmented recording.
         
 #### Examples
 
-```julia
-ave, nSegs = averageEpochs(rec)
-```
+
+    ave, nSegs = averageEpochs(rec)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:80](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:79](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -70,16 +69,16 @@ voltage from each channel of a segmented recording.
     
 #### Examples
 
-```julia
-#baseline window has the same duration of preDur
-baselineCorrect(rec, -0.2, 0.2, 512)
-#now with a baseline shorter than preDur
-baselineCorrect(rec, -0.15, 0.2, 512)
-```
+
+    #baseline window has the same duration of preDur
+    baselineCorrect(rec, -0.2, 0.2, 512)
+    #now with a baseline shorter than preDur
+    baselineCorrect(rec, -0.15, 0.2, 512)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:116](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:115](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -89,43 +88,58 @@ Delete a row or a column from a 2-dimensional array.
 #### Args
 
 * `x::AbstractMatrix{T}`: the 2-dimensional array from which rows of columns should be deleted.
-* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the rows to remove.
+* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the rows/columns to remove.
 * `axis::Integer`: an integer indicating whether rows or columns should be removed. 1 corresponds to rows, 2 corresponds to columns.
 
 #### Returns
 
-* `x::AbstractMatrix{T}`: a 2-dimansional array with the selected row or columns removed.
+* `x::AbstractMatrix{T}`: a 2-dimensional array with the selected row or columns removed.
 
 #### Examples
 
-```julia
-x = [1 2 3 4;
-     5 6 7 8;
-     9 10 11 12;
-     13 14 15 16
-     ]
+    x = [1 2 3 4;
+         5 6 7 8;
+         9 10 11 12;
+         13 14 15 16
+        ]
 
-#remove first row
-isequal(deleteSlice2D(x, 1, 1), x[2:end,:])
-#remove rows 1 and 4
-isequal(deleteSlice2D(x, [1,4], 1), x[2:3,:])
-# remove columns 1 and 4
-isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
+    #remove first row
+    isequal(deleteSlice2D(x, 1, 1), x[2:end,:])
+    #remove rows 1 and 4
+    isequal(deleteSlice2D(x, [1,4], 1), x[2:3,:])
+    # remove columns 1 and 4
+    isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
 
-```
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:319](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:306](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### deleteSlice3D(x, toRemove, axis)
+#### deleteSlice3D{T, P<:Integer}(x::Array{T, 3}, toRemove::Union(P<:Integer, AbstractArray{P<:Integer, 1}), axis::Integer)
 Delete a slice from a 3-dimensional array.
+
+#### Args
+
+* `x::Array{T, 3}`: the 3-dimensional array from which rows of columns should be deleted.
+* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the slices to remove.
+* `axis::Integer`: an integer indicating the axis along which slices should be removed.
+
+#### Returns
+
+* `x::Array{T, 3}`: a 3-dimensional array with the selected row or columns removed.
+
+#### Examples
+
+    x = reshape([1:27], 3,3,3)
+    deleteSlice3D(x, 2, 1)
+    deleteSlice3D(x, [2,3], 3)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:341](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:345](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -145,16 +159,36 @@ Remove the mean value from each channel of an EEG recording.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:401](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:384](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### fftconvolve(x, y, mode)
+#### fftconvolve{T<:Real, R<:Real}(x::AbstractArray{T<:Real, 1}, y::AbstractArray{R<:Real, 1}, mode::String)
+Convolve two 1-dimensional arrays using the FFT.
+
+#### Arguments
+
+* `x::AbstractVector{T}`: First input.
+* `y::AbstractVector{T}`: Second input. Should have the same number of dimensions as `x`; if sizes of `x` and `y` are not equal then `x` has to be the larger array.
+* `mode::String`: A string indicating the size of the output:
+    * "full": The output is the full discrete linear convolution of the inputs. (Default)
+    * "valid": The output consists only of those elements that do not rely on the zero-padding.
+    * "same": The output is the same size as `x`, centered with respect to the "full" output.
+
+#### Returns
+
+* `out::AbstractVector{T}`: An 1-dimensional array containing a subset of the discrete linear convolution of `x` with `y`.
+
+#### Examples
+
+    x = rand(1:10, 10)
+    y = rand(1:10, 10)
+    fftconvolve(x, y, "same")
 
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:494](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:497](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -186,7 +220,7 @@ Filter a continuous EEG recording.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:436](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:419](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -233,7 +267,7 @@ value, its length must match the number of channels to check.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:549](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:552](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -280,11 +314,11 @@ value, its length must match the number of channels to check.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:549](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:552](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, maxLag::Real)
+#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, maxLag::Real)
 Compute the autocorrelation function of a 1-dimensional signal.
 
 #### Arguments:
@@ -308,11 +342,11 @@ Compute the autocorrelation function of a 1-dimensional signal.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:630](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:633](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real)
+#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real)
 Compute the autocorrelogram of a 1-dimensional array.
     
 #### Parameters
@@ -339,11 +373,11 @@ Compute the autocorrelogram of a 1-dimensional array.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:704](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:707](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real)
+#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real)
 Compute the phase spectrum of a 1-dimensional array.
     
 #### Arguments
@@ -367,7 +401,7 @@ Compute the phase spectrum of a 1-dimensional array.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1138](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1141](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -396,7 +430,7 @@ This function is the same as `getSNR`, but it additionaly returns the signal and
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:996](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:999](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -422,11 +456,11 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:962](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:965](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real)
+#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, winLength::Real, overlap::Real)
 Compute the spectrogram of a 1-dimensional array.
     
 #### Parameters
@@ -456,11 +490,11 @@ If the signal length is not a multiple of the window length it is trucated.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1035](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1038](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Integer)
+#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Integer)
 Compute the power spectrum of a 1-dimensional array.
     
 #### Arguments
@@ -484,7 +518,7 @@ Compute the power spectrum of a 1-dimensional array.
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1076](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1079](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -506,7 +540,7 @@ mergeEventTableCodes!(evtTab, [200, 220], 999)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1182](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1185](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -527,7 +561,7 @@ isequal(2^(nextPowTwo(6)), 2^3)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1202](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1205](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -548,7 +582,7 @@ removeEpochs!(segs, toRemoveDict)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1222](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1225](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -562,7 +596,7 @@ res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1239](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1242](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -583,7 +617,7 @@ rerefCnt!(dats, refChan=4, channels=[1, 2, 3])
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1301](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1304](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -619,7 +653,7 @@ segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], event
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:1347](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:1350](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ## Internal
 ---
@@ -628,7 +662,7 @@ segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], event
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:483](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:466](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -647,15 +681,15 @@ voltage from each channel of a segmented recording.
     
 #### Examples
 
-```julia
-#baseline window has the same duration of pre_dur
-baselineCorrect(rec, -0.2, 0.2, 512)
-#now with a baseline shorter than pre_dur
-baselineCorrect(rec, -0.15, 0.2, 512)
-```
+
+    #baseline window has the same duration of pre_dur
+    baselineCorrect(rec, -0.2, 0.2, 512)
+    #now with a baseline shorter than pre_dur
+    baselineCorrect(rec, -0.15, 0.2, 512)
+
 
 
 **source:**
-[ElectroJulia/src/ElectroJulia.jl:155](file:///home/sam/.julia/v0.3/ElectroJulia/src/ElectroJulia.jl)
+[BrainWave/src/BrainWave.jl:154](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 

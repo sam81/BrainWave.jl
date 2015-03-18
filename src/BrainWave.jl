@@ -1,4 +1,4 @@
-module ElectroJulia
+module BrainWave
 
 export averageAverages, averageEpochs, baselineCorrect!, chainSegments,
 deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, #_centered,
@@ -32,9 +32,8 @@ from which it was obtained.
 
 #### Examples
 
-```julia
-aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
-```
+    aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
+
 """->
 function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}})
     eventList = collect(keys(aveList[1]))
@@ -74,9 +73,9 @@ Average the epochs of a segmented recording.
         
 #### Examples
 
-```julia
-ave, nSegs = averageEpochs(rec)
-```
+
+    ave, nSegs = averageEpochs(rec)
+
 """->
 function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
 
@@ -107,12 +106,12 @@ voltage from each channel of a segmented recording.
     
 #### Examples
 
-```julia
-#baseline window has the same duration of preDur
-baselineCorrect(rec, -0.2, 0.2, 512)
-#now with a baseline shorter than preDur
-baselineCorrect(rec, -0.15, 0.2, 512)
-```
+
+    #baseline window has the same duration of preDur
+    baselineCorrect(rec, -0.2, 0.2, 512)
+    #now with a baseline shorter than preDur
+    baselineCorrect(rec, -0.15, 0.2, 512)
+
 """->
 function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
     eventList = collect(keys(rec))
@@ -146,12 +145,12 @@ voltage from each channel of a segmented recording.
     
 #### Examples
 
-```julia
-#baseline window has the same duration of pre_dur
-baselineCorrect(rec, -0.2, 0.2, 512)
-#now with a baseline shorter than pre_dur
-baselineCorrect(rec, -0.15, 0.2, 512)
-```
+
+    #baseline window has the same duration of pre_dur
+    baselineCorrect(rec, -0.2, 0.2, 512)
+    #now with a baseline shorter than pre_dur
+    baselineCorrect(rec, -0.15, 0.2, 512)
+
 """->
 function baselineCorrectloop!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
     
@@ -274,17 +273,7 @@ end
 ##     return eegChained
 ## end
 
-## function deleteSlice3D(x, toRemove)
-##     y = similar(x, size(x)[1], size(x)[2], size(x)[3]-length(toRemove))
-##     idx = 1
-##     for i=1:size(x)[3]
-##         if ~contains(toRemove, i)
-##             y[:,:,idx] = x[:,:,i]
-##             idx = idx+1
-##         end
-##     end
-##     return y
-## end
+
 
 @doc doc"""
 Delete a row or a column from a 2-dimensional array.
@@ -292,30 +281,28 @@ Delete a row or a column from a 2-dimensional array.
 #### Args
 
 * `x::AbstractMatrix{T}`: the 2-dimensional array from which rows of columns should be deleted.
-* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the rows to remove.
+* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the rows/columns to remove.
 * `axis::Integer`: an integer indicating whether rows or columns should be removed. 1 corresponds to rows, 2 corresponds to columns.
 
 #### Returns
 
-* `x::AbstractMatrix{T}`: a 2-dimansional array with the selected row or columns removed.
+* `x::AbstractMatrix{T}`: a 2-dimensional array with the selected row or columns removed.
 
 #### Examples
 
-```julia
-x = [1 2 3 4;
-     5 6 7 8;
-     9 10 11 12;
-     13 14 15 16
-     ]
+    x = [1 2 3 4;
+         5 6 7 8;
+         9 10 11 12;
+         13 14 15 16
+        ]
 
-#remove first row
-isequal(deleteSlice2D(x, 1, 1), x[2:end,:])
-#remove rows 1 and 4
-isequal(deleteSlice2D(x, [1,4], 1), x[2:3,:])
-# remove columns 1 and 4
-isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
+    #remove first row
+    isequal(deleteSlice2D(x, 1, 1), x[2:end,:])
+    #remove rows 1 and 4
+    isequal(deleteSlice2D(x, [1,4], 1), x[2:3,:])
+    # remove columns 1 and 4
+    isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
 
-```
 """->
 function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union(P, AbstractVector{P}), axis::Integer)
     if in(axis, [1,2]) == false
@@ -338,52 +325,48 @@ end
    
 @doc doc"""
 Delete a slice from a 3-dimensional array.
+
+#### Args
+
+* `x::Array{T, 3}`: the 3-dimensional array from which rows of columns should be deleted.
+* `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the slices to remove.
+* `axis::Integer`: an integer indicating the axis along which slices should be removed.
+
+#### Returns
+
+* `x::Array{T, 3}`: a 3-dimensional array with the selected row or columns removed.
+
+#### Examples
+
+    x = reshape([1:27], 3,3,3)
+    deleteSlice3D(x, 2, 1)
+    deleteSlice3D(x, [2,3], 3)
+
 """->
-function deleteSlice3D(x, toRemove, axis)
-    toKeep = (Int)[]
-    for i=1:size(x)[axis]
-        if ~in(i, toRemove)
-            push!(toKeep, i)
-        end
+function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union(P, AbstractVector{P}), axis::Integer)
+
+    if in(axis, [1,2,3]) == false
+        error("axis must be either 1, 2, or 3")
+    end
+    if length(toRemove) > 1
+        toRemove = sort(toRemove)
     end
     if axis == 1
-        y = x[toKeep,:,:]
+        for i=1:length(toRemove)
+            x = x[[setdiff(1:size(x, 1), toRemove[i]-i+1)],:,:]
+        end
     elseif axis == 2
-        y = x[:,toKeep,:]
+        for i=1:length(toRemove)
+            x = x[:, [setdiff(1:size(x, 2), toRemove[i]-i+1)],:]
+        end
     elseif axis == 3
-        y = x[:,:,toKeep]
+        for i=1:length(toRemove)
+            x = x[:, :, [setdiff(1:size(x, 3), toRemove[i]-i+1)]]
+        end
     end
     
-    return y
+    return x
 end
-
-## function deleteSliceND(x, toRemove, axis)
-##     toKeep = (Integer)[]
-##     for i=1:size(x)[axis]
-##         if ~contains(toRemove, i)
-##             push!(toKeep, i)
-##         end
-##     end
-##     idx = (Any)[]
-##     for i=1:length(size(x))
-##         if i == axis
-##             push!(idx, toKeep)
-##         else
-##             push!(idx, [1:size(x)[i]])
-##         end
-##     end
-                
-##     y = x[
-##     y = similar(x, size(x)[1], size(x)[2], size(x)[3]-length(toRemove))
-##     idx = 1
-##     for i=1:size(x)[3]
-##         if ~contains(toRemove, i)
-##             y[:,:,idx] = x[:,:,i]
-##             idx = idx+1
-##         end
-##     end
-##     return y
-## end
 
 @doc doc"""
 Remove the mean value from each channel of an EEG recording.
@@ -490,9 +473,29 @@ function _centered(arr, newsize)
 end
 
 @doc doc"""
+Convolve two 1-dimensional arrays using the FFT.
+
+#### Arguments
+
+* `x::AbstractVector{T}`: First input.
+* `y::AbstractVector{T}`: Second input. Should have the same number of dimensions as `x`; if sizes of `x` and `y` are not equal then `x` has to be the larger array.
+* `mode::String`: A string indicating the size of the output:
+    * "full": The output is the full discrete linear convolution of the inputs. (Default)
+    * "valid": The output consists only of those elements that do not rely on the zero-padding.
+    * "same": The output is the same size as `x`, centered with respect to the "full" output.
+
+#### Returns
+
+* `out::AbstractVector{T}`: An 1-dimensional array containing a subset of the discrete linear convolution of `x` with `y`.
+
+#### Examples
+
+    x = rand(1:10, 10)
+    y = rand(1:10, 10)
+    fftconvolve(x, y, "same")
 
 """->
-function fftconvolve(x, y, mode)
+function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R}, mode::String)
     s1 = size(x)[1]#check if array has two dim?
     s2 = size(y)[1]
     #println(typeof(x), typeof(y))

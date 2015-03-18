@@ -1,4 +1,4 @@
-site_name: ElectroJulia.jl
+site_name: BrainWave.jl
 theme: united
 pages:
     - ['index.md', 'Introduction']

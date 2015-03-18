@@ -1,3 +1,3 @@
-`ElectroJulia` is a module containing functions to process electroencephalographic (EEG) recordings with the Julia programming language. The software is in alpha status, it is here in the hope that it may be useful to someone looking into analysing EEG data with Julia. However, currently the software unsupported, and radical API changes may occurr at any time. 
+`BrainWave` is a module containing functions to process electroencephalographic (EEG) recordings with the Julia programming language. The software is in alpha status, it is here in the hope that it may be useful to someone looking into analysing EEG data with Julia. However, currently the software unsupported, and radical API changes may occurr at any time. 
 
 Documentation is available at [http://electrojuliajl.readthedocs.org/en/latest/](http://electrojuliajl.readthedocs.org/en/latest/).
