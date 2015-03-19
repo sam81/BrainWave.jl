@@ -1,4 +1,4 @@
-# Brainwave.jl Tutorial
+# BrainWave.jl Tutorial
 
 For this tutorial, we'll use the example dataset contained in the EEGLab
 distribution. You can download a copy of EEGLab from [here](ftp://sccn.ucsd.edu/pub/daily/). After unzipping the file, copy the "eeglab_data.set", and "eeglab_chan32.locs" files from the "sample_data" directory to the directory you want to work with julia. The first file contains the EEG data, while the second file contains information about the channel locations.
@@ -63,7 +63,7 @@ evtTab = @compat Dict{String,Any}("code" => code,
                                   "idx" => idx)
 ```
 
-next we store the data in a variable called `data', and the sampling rate of the recording
+next we store the data in a variable called `data`, and the sampling rate of the recording
 in a variable called `sampRate`:
 
 ```julia
@@ -93,7 +93,7 @@ Next, we'll filter the recording with a bandpass filter between 1 and 30 Hz:
 filterContinuous!(data, sampRate, "bandpass", 512, [1, 30], transitionWidth=0.2)
 ```
 
-We'll the epoch the recording:
+We'll then epoch the recording:
 
 ```julia
 epochStart = -1

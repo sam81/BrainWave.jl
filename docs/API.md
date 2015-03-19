@@ -225,7 +225,7 @@ Filter a continuous EEG recording.
 
 ---
 
-#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1}), channels::Union(Q<:Integer, AbstractArray{Q<:Integer, 1}))
+#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1}), channels::Union(AbstractArray{Q<:Integer, 1}, Q<:Integer))
 
 Find epochs with voltage values exceeding a given threshold.
     
@@ -319,7 +319,7 @@ value, its length must match the number of channels to check.
 
 ---
 
-#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, maxLag::Real)
+#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, maxLag::Real)
 Compute the autocorrelation function of a 1-dimensional signal.
 
 #### Arguments:
@@ -347,7 +347,7 @@ Compute the autocorrelation function of a 1-dimensional signal.
 
 ---
 
-#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real)
+#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real)
 Compute the autocorrelogram of a 1-dimensional array.
     
 #### Parameters
@@ -378,7 +378,7 @@ Compute the autocorrelogram of a 1-dimensional array.
 
 ---
 
-#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real)
+#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real)
 Compute the phase spectrum of a 1-dimensional array.
     
 #### Arguments
@@ -461,7 +461,7 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
 
 ---
 
-#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, winLength::Real, overlap::Real)
+#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real)
 Compute the spectrogram of a 1-dimensional array.
     
 #### Parameters
@@ -495,7 +495,7 @@ If the signal length is not a multiple of the window length it is trucated.
 
 ---
 
-#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Integer)
+#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Integer)
 Compute the power spectrum of a 1-dimensional array.
     
 #### Arguments

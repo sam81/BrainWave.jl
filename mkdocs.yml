@@ -1,5 +1,5 @@
 site_name: BrainWave.jl
-theme: united
+theme: readthedocs
 pages:
     - ['index.md', 'Introduction']
     - ['tutorial.md', 'Tutorial']
