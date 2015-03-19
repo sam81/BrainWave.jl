@@ -3,27 +3,34 @@ using BrainWave, Compat, MAT, Winston
 
 chanTab = readdlm("eeglab_chan32.locs", '\t')
 chanLabels = chanTab[:,4]
-chanLabels[2] = "EOG1"; chanLabels[6] = "EOG2"
+
 [chanLabels[i] = strip(chanLabels[i]) for i=1:length(chanLabels)]
+
+chanLabels[2] = "EOG1"; chanLabels[6] = "EOG2"
+
 
 fileIn = matopen("eeglab_data.set")
 dset = read(fileIn, "EEG")
 close(fileIn)
 
-nEvents = length(dset["event"]["type"])
-code = zeros(Int, nEvents)
-idx = zeros(Int, nEvents)
-sampRate = int(dset["srate"])
+nEvents = length(dset["event"]["type"]) #count how many events we have
+code = zeros(Int, nEvents) #prepare array to store trigger codes
+idx = zeros(Int, nEvents) #prepare array to store sample numbers
 for i=1:nEvents
     idx[i] = int(dset["event"]["latency"][i])
     code[i] = ifelse(dset["event"]["type"][i] == "square", 1, 2)
 end
 
-data = dset["data"]
+#create event table
 evtTab = @compat Dict{String,Any}("code" => code,
                                   "idx" => idx)
 
-#rerefCnt!(data, 14)
+data = dset["data"]
+sampRate = int(dset["srate"]) 
+
+size(data, 2) / sampRate
+
+
 idxEOG = [find(chanLabels .== "EOG1")[1], find(chanLabels .== "EOG2")[1]]
 data = data .- mean(deleteSlice2D(data, idxEOG, 1), 1)
 
