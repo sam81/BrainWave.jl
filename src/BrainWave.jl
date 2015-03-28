@@ -2,9 +2,9 @@ module BrainWave
 
 export averageAverages, averageEpochs, baselineCorrect!, chainSegments,
 deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, #_centered,
-fftconvolve, findArtefactThresh, getACF, getAutocorrelogram, getFRatios,
+fftconvolve, findArtefactThresh, findExtremum, getACF, getAutocorrelogram, getFRatios,
 getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
-mergeEventTableCodes!, nextPowTwo,
+meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
 #segment
 using DataFrames
@@ -609,6 +609,58 @@ function findArtefactThresh{T<:Real, P<:Real, R<:String, S<:String}(rec::Dict{St
     return segsToReject
 end
 
+@doc doc"""
+Find the time point at which a waveform reaches a maximum or a minimum.
+
+#### Arguments:
+
+* `wave::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the waveform for which the extremum should be found.
+* `searchStart::Real`: the starting time point, in seconds, of the window in which to search for the extremum.
+* `searchStop::Real`: the stopping time point, in seconds, of the window in which to search for the extremum.
+* `extremumSign::String`: whether the sought extremum is of `positive` or `negative` sign.
+* `epochStart::Real`: the time, in seconds, at which the epoch starts.
+* `samprate::Real`: the sampling rate of the signal.
+                      
+#### Returns
+
+* `extremumPnt::Real`: the sample number at which the extremum occurs.
+* `extremumTime::Real`: the time, in seconds, at which the extremum occurs.
+
+### Examples
+    P2SearchStart = 0.150
+    P2SearchStop = 0.250
+    epochStart = -0.150
+    sampRate = 8192
+    sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
+
+"""->
+function findExtremum{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T}), searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real)
+
+    if ndims(wave) > 1
+        if in(1, size(wave)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        wave = vec(wave)
+    end
+    
+    searchStartPnt = int(round((searchStart - epochStart)*sampRate))
+    searchStopPnt = int(round((searchStop - epochStart)*sampRate))
+    searchWin = wave[searchStartPnt:searchStopPnt]
+    if extremumSign == "positive"
+        extremumPntRel = find(searchWin .== maximum(searchWin))
+    elseif extremumSign == "negative"
+        extremumPntRel = find(searchWin .== minimum(searchWin))
+    end
+
+    if length(extremumPntRel) > 1
+        println("Warning: more than one extrema detected with the same amplitude. Selecting the first one...")
+    end
+    extremumPnt = extremumPntRel[1] + searchStartPnt
+    extremumTime = (extremumPnt / sampRate) + epochStart
+
+    return extremumPnt, extremumTime
+end
+
 
 @doc doc"""
 Compute the autocorrelation function of a 1-dimensional signal.
@@ -1169,6 +1221,82 @@ function getPhaseSpectrum{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{
 end
 
 @doc doc"""
+Compute the mean amplitude of an ERP waveform in a time window centered on a given point.
+
+#### Arguments:
+
+* `wave::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the waveform for which the mean amplitude should be computed.
+* `center::Real`: the center of the window in which the mean amplitude should be computed. `center` can be specified either
+                  in terms of sample point number, or in terms of time in seconds. If center is specified in terms of time
+                  in seconds, the time at which the epoch starts, should be passed as an additional argument to the function.
+* `centerType::String`: whether the `center` is specified in terms of sample point number `point`, or interms of time in seconds `time`.
+* `winLength::String`: the length of the window, in seconds, over which to compute the meam amplitude.
+* `samprate::Real`: the sampling rate of the signal.
+* `epochStart::Real`: the time, in seconds, at which the epoch starts.
+
+#### Returns
+
+* `meanAmp::Real`: the mean amplitude of the waveform in the time window centered at the specified point.
+
+### Examples
+
+    P2WinLength = 0.050
+    centerPoint = 2512
+    sampRate = 8192
+    meanAmp =  meanERPAmplitude(wave, centerPoint, "point", P2WinLength, sampRate)
+
+    epochStart = -0.150
+    centerPointTm = 0.156
+    meanAmp =  meanERPAmplitude(wave, centerPointTm, "time", P2WinLength, sampRate)
+
+"""->
+function meanERPAmplitude{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T}), center::Real, centerType::String, winLength::Real, sampRate::Real)
+    
+    if ndims(wave) > 1
+        if in(1, size(wave)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        wave = vec(wave)
+    end
+
+    if centerType == "point"
+        centerPnt = center
+    elseif centerType == "time"
+        error("If `centerType` is `time` you need to specify `epochStart`") #centerPnt = (center-epochStart)*sampRate
+    end
+
+    startPnt = centerPnt - int(round(winLength/2*sampRate))
+    stopPnt = centerPnt + int(round(winLength/2*sampRate))
+
+    meanAmp = mean(wave[startPnt:stopPnt])
+    return meanAmp
+end
+
+
+function meanERPAmplitude{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T}), center::Real, centerType::String, winLength::Real, sampRate::Real, epochStart::Real)
+    #centerType: point or time
+
+    if ndims(wave) > 1
+        if in(1, size(wave)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        wave = vec(wave)
+    end
+    
+    if centerType == "point"
+        centerPnt = center
+    elseif centerType == "time"
+        centerPnt = (center-epochStart)*sampRate
+    end
+
+    startPnt = centerPnt - int(round(winLength/2*sampRate))
+    stopPnt = centerPnt + int(round(winLength/2*sampRate))
+
+    meanAmp = mean(wave[startPnt:stopPnt])
+    return meanAmp
+end
+
+@doc doc"""
 Substitute the event table triggers listed in `trigList`
 with newTrig
 
@@ -1392,8 +1520,6 @@ function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTa
     return segs, nSegs
         
 end
-
-
 
 
 end #Module
