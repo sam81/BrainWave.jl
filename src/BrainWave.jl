@@ -507,7 +507,7 @@ end
 @doc doc"""
 Find the time point at which a waveform reaches a maximum or a minimum.
 
-#### Arguments:
+##### Arguments:
 
 * `wave::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the waveform for which the extremum should be found.
 * `searchStart::Real`: the starting time point, in seconds, of the window in which to search for the extremum.
@@ -516,17 +516,40 @@ Find the time point at which a waveform reaches a maximum or a minimum.
 * `epochStart::Real`: the time, in seconds, at which the epoch starts.
 * `samprate::Real`: the sampling rate of the signal.
                       
-#### Returns
+##### Returns
 
 * `extremumPnt::Real`: the sample number at which the extremum occurs.
 * `extremumTime::Real`: the time, in seconds, at which the extremum occurs.
 
-### Examples
+##### Examples
+
+    ```julia
+    ## not run
+    ## P2SearchStart = 0.150
+    ## P2SearchStop = 0.250
+    ## epochStart = -0.150
+    ## sampRate = 8192
+    ## sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
+
+    # contrived example
+    using Winston
+    sampRate = 256
+    dur = 0.6
+    epochStart = -0.15
     P2SearchStart = 0.150
     P2SearchStop = 0.250
-    epochStart = -0.150
-    sampRate = 8192
+    nSamp = round(Int, dur*sampRate)
+    freq = 2
+    phase = 1/4*(-pi)
+    tArr = collect(0:nSamp-1)/sampRate + epochStart
+    wave1 = sin(2*pi*freq*tArr+phase)
+    wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
+    p = plot(tArr, wave1)
+    l1 = LineX(timePnt, color="red")
+    add(p, l1)
+    display(p)
+```
 
 """->
 function findExtremum{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T}), searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real)
@@ -537,9 +560,10 @@ function findExtremum{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T})
         end
         wave = vec(wave)
     end
-    
+
     searchStartPnt = round(Int, (searchStart - epochStart)*sampRate)
     searchStopPnt = round(Int, (searchStop - epochStart)*sampRate)
+    
     searchWin = wave[searchStartPnt:searchStopPnt]
     if extremumSign == "positive"
         extremumPntRel = find(searchWin .== maximum(searchWin))
@@ -550,9 +574,12 @@ function findExtremum{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T})
     if length(extremumPntRel) > 1
         println("Warning: more than one extrema detected with the same amplitude. Selecting the first one...")
     end
-    extremumPnt = extremumPntRel[1] + searchStartPnt
-    extremumTime = (extremumPnt / sampRate) + epochStart
 
+    tArr = collect(0:length(wave)-1)/sampRate + epochStart
+    extremumPnt = extremumPntRel[1] + searchStartPnt-1
+    #extremumTime = (extremumPnt / sampRate) + epochStart
+    extremumTime = tArr[extremumPnt]
+    
     return extremumPnt, extremumTime
 end
 

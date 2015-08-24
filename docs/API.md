@@ -231,7 +231,7 @@ Convolve two 1-dimensional arrays using the FFT.
 ---
 
 <a id="method__filtercontinuous.1" class="lexicon_definition"></a>
-#### filterContinuous!{T<:Real, P<:Real}(rec::AbstractArray{T<:Real, 2}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(AbstractArray{P<:Real, 1}, P<:Real)) [¶](#method__filtercontinuous.1)
+#### filterContinuous!{T<:Real, P<:Real}(rec::AbstractArray{T<:Real, 2}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(P<:Real, AbstractArray{P<:Real, 1})) [¶](#method__filtercontinuous.1)
 Filter a continuous EEG recording.
     
 #### Arguments
@@ -267,7 +267,7 @@ Filter a continuous EEG recording.
 ---
 
 <a id="method__findartefactthresh.1" class="lexicon_definition"></a>
-#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(AbstractArray{P<:Real, 1}, P<:Real), channels::Union(AbstractArray{Q<:Integer, 1}, Q<:Integer)) [¶](#method__findartefactthresh.1)
+#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1}), channels::Union(AbstractArray{Q<:Integer, 1}, Q<:Integer)) [¶](#method__findartefactthresh.1)
 
 Find epochs with voltage values exceeding a given threshold.
     
@@ -321,7 +321,7 @@ value, its length must match the number of channels to check.
 ---
 
 <a id="method__findartefactthresh.2" class="lexicon_definition"></a>
-#### findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(AbstractArray{P<:Real, 1}, P<:Real)) [¶](#method__findartefactthresh.2)
+#### findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1})) [¶](#method__findartefactthresh.2)
 
 Find epochs with voltage values exceeding a given threshold.
     
@@ -378,7 +378,7 @@ value, its length must match the number of channels to check.
 #### findExtremum{T<:Real}(wave::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real) [¶](#method__findextremum.1)
 Find the time point at which a waveform reaches a maximum or a minimum.
 
-#### Arguments:
+##### Arguments:
 
 * `wave::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the waveform for which the extremum should be found.
 * `searchStart::Real`: the starting time point, in seconds, of the window in which to search for the extremum.
@@ -387,22 +387,45 @@ Find the time point at which a waveform reaches a maximum or a minimum.
 * `epochStart::Real`: the time, in seconds, at which the epoch starts.
 * `samprate::Real`: the sampling rate of the signal.
                       
-#### Returns
+##### Returns
 
 * `extremumPnt::Real`: the sample number at which the extremum occurs.
 * `extremumTime::Real`: the time, in seconds, at which the extremum occurs.
 
-### Examples
+##### Examples
+
+    ```julia
+    ## not run
+    ## P2SearchStart = 0.150
+    ## P2SearchStop = 0.250
+    ## epochStart = -0.150
+    ## sampRate = 8192
+    ## sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
+
+    # contrived example
+    using Winston
+    sampRate = 256
+    dur = 0.6
+    epochStart = -0.15
     P2SearchStart = 0.150
     P2SearchStop = 0.250
-    epochStart = -0.150
-    sampRate = 8192
+    nSamp = round(Int, dur*sampRate)
+    freq = 2
+    phase = 1/4*(-pi)
+    tArr = collect(0:nSamp-1)/sampRate + epochStart
+    wave1 = sin(2*pi*freq*tArr+phase)
+    wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
+    p = plot(tArr, wave1)
+    l1 = LineX(timePnt, color="red")
+    add(p, l1)
+    display(p)
+```
 
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:531](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:554](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -431,7 +454,7 @@ Compute the autocorrelation function of a 1-dimensional signal.
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:581](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:608](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -463,7 +486,7 @@ Compute the autocorrelogram of a 1-dimensional array.
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:655](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:682](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -492,7 +515,7 @@ Compute the phase spectrum of a 1-dimensional array.
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:872](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:899](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -522,7 +545,7 @@ This function is the same as `getSNR`, but it additionaly returns the signal and
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:730](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:757](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -549,7 +572,7 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:696](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:723](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -584,7 +607,7 @@ If the signal length is not a multiple of the window length it is trucated.
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:769](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:796](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -613,7 +636,7 @@ Compute the power spectrum of a 1-dimensional array.
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:810](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:837](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -650,7 +673,7 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:930](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:957](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -675,7 +698,7 @@ mergeEventTableCodes!(evtTab, [3,4], 3)
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:994](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1021](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -697,7 +720,7 @@ isequal(2^(nextPowTwo(6)), 2^3)
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:1014](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1041](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -726,7 +749,7 @@ removeEpochs!(segs, segsToReject)
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:1041](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1068](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -742,7 +765,7 @@ removeEpochs!(segs, segsToReject)
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:1059](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1086](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -765,7 +788,7 @@ rerefCnt!(rec, 4, channels=[1, 2, 3])
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:1122](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1149](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -804,7 +827,7 @@ segs, nSegs = segment(rec, evtTab, -preDur, epochDur, sampRate, eventsList=[1, 2
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:1170](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1197](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
@@ -841,7 +864,7 @@ rec, evtTab = simulateRecording(dur=180, events=[1,2,3])
 
 
 *source:*
-[BrainWave/src/BrainWave.jl:1244](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+[BrainWave/src/BrainWave.jl:1271](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ## Internal
 
