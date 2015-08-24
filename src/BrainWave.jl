@@ -5,14 +5,11 @@ deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, #_centered,
 fftconvolve, findArtefactThresh, findExtremum, getACF, getAutocorrelogram, getFRatios,
 getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
 meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
-removeEpochs!, removeSpuriousTriggers!, rerefCnt!, segment
-#segment
-using DataFrames
-using Distributions
-using DSP
-using PyCall
-using Docile
-#using Devectorize
+removeEpochs!, removeSpuriousTriggers!, rerefCnt!,
+segment, simulateRecording
+
+using Compat, DataFrames, Distributions, DSP, PyCall, Docile
+
 #pyinitialize("python3")
 
 @pyimport scipy.signal as scisig
@@ -73,8 +70,12 @@ Average the epochs of a segmented recording.
         
 #### Examples
 
-
-    ave, nSegs = averageEpochs(rec)
+```julia
+epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+ave, nSegs = averageEpochs(segs)
+```
 
 """->
 function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
@@ -108,9 +109,9 @@ voltage from each channel of a segmented recording.
 
 
     #baseline window has the same duration of preDur
-    baselineCorrect(rec, -0.2, 0.2, 512)
+    baselineCorrect!(rec, -0.2, 0.2, 512)
     #now with a baseline shorter than preDur
-    baselineCorrect(rec, -0.15, 0.2, 512)
+    baselineCorrect!(rec, -0.15, 0.2, 512)
 
 """->
 function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
@@ -378,8 +379,10 @@ Remove the mean value from each channel of an EEG recording.
 
 #### Examples
 
-    x = [1 2 3; 4 5 6]
-    detrendEEG!(x)
+```julia
+x = [1 2 3; 4 5 6]
+detrendEEG!(x)
+```
 
     
 """->
@@ -1207,7 +1210,7 @@ function getPhaseSpectrum{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{
         nfft = n
     end
     w = window(n)
-    sig = sig.*w'
+    sig = sig.*w
 
     p = fft(sig)#, nfft) # take the fourier transform
     
@@ -1309,7 +1312,9 @@ with newTrig
 #### Examples
 
 ```julia
-mergeEventTableCodes!(evtTab, [200, 220], 999)
+rec, evtTab= simulateRecording(events=[1,2,3,4])
+mergeEventTableCodes!(evtTab, [1,2], 1)
+mergeEventTableCodes!(evtTab, [3,4], 3)
 ```
 """->
 function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String,Any}, trigList::AbstractVector{T}, newTrig::Integer)
@@ -1348,7 +1353,14 @@ Remove epochs from a segmented recording.
 #### Examples
 
 ```julia
-removeEpochs!(segs, toRemoveDict)
+epochDur=0.5; preDur=0.15; events=[1,2];
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+segsToReject = (String => Array{Int,1})[]
+segsToReject["1"] = [3,5]
+segsToReject["2"] = [1,2]
+#toRemove = @compat Dict("1" => [3,5], "2" => [2])
+removeEpochs!(segs, segsToReject)
 ```
 
 """->
@@ -1366,7 +1378,8 @@ end
 #### Examples
 
 ```julia
-res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
+#not run
+#res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
 ```
 """->
 function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array{Int}, minTrigDur::Real)
@@ -1428,7 +1441,8 @@ Rereference channels in a continuous recording.
 #### Examples
 
 ```julia
-rerefCnt!(dats, refChan=4, channels=[1, 2, 3])
+rec, evtTab = simulateRecording(nChans=4)
+rerefCnt!(rec, 4, channels=[1, 2, 3])
 ```
 """->
 function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer; channels::Union(P, AbstractVector{P})=[1:size(rec, 1)])
@@ -1474,7 +1488,9 @@ Segment a continuous EEG recording into discrete event-related epochs.
 #### Examples
 
 ```julia
-segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], eventsLabelsList=["cnd1", "cnd2"])
+epochDur=0.5; preDur=0.2; events=[1,2]; sampRate=256;
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events, sampRate=sampRate)
+segs, nSegs = segment(rec, evtTab, -preDur, epochDur, sampRate, eventsList=[1, 2], eventsLabelsList=["cnd1", "cnd2"])
 ```
 """->
 function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTable::Dict{String, Any},
@@ -1519,6 +1535,62 @@ function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTa
 
     return segs, nSegs
         
+        end
+
+@doc doc"""
+Generate a simulated EEG recordings. Not physiologically plausible.
+Mainly useful for testing purposes.
+
+##### Parameters
+
+* `nChans`: Number of channels.
+* `dur`: duration of the recordings, in seconds.
+* `sampRate`: Sampling rate.
+* `events`: A list of event codes.
+* `epochDur`: Duration of an ERP epoch.
+* `preDur`: Duration of the pre-stimulus baseline.
+* `minVolt`: Minimum possible voltage value.
+* `maxVolt`: Maximum possible voltage value.
+
+##### Returns
+
+* `rec`: A nChannelsXnSamples data matrix with values randomly drawn from
+     a uniform distribution between minVolt and maxVolts.
+* `evtTab`: The event table with event codes and indexes of the samples at which
+    events start.
+
+##### Examples
+
+```julia
+rec, evtTab = simulateRecording()
+rec, evtTab = simulateRecording(dur=180, events=[1,2,3])
+```
+
+"""->
+
+function simulateRecording(;nChans::Integer=16, dur::Real=120, sampRate::Real=256,
+                           events=[1,2], epochDur::Real=0.5, preDur::Real=0.2,
+                           minVolt::Real=-150, maxVolt::Real=150)
+
+    if dur<(preDur+epochDur+1)*2
+        error("`dur` is too short")
+    end
+ 
+    rec = rand(nChans, sampRate*dur)*(maxVolt-minVolt)+minVolt
+    startPoints = [ceil(Int, preDur*sampRate):(ceil(Int, preDur*sampRate)+ceil(Int, epochDur*sampRate)):(size(rec)[2]-round(Int, sampRate*1))]
+    #nEvents = round(Int, dur/(epochDur+preDur)) - 3
+    #nCodes = length(events)
+    #nEventsPerCode = floor(Int, nEvents/nCodes)
+    #evt = repeat(events, outer=[nEventsPerCode])
+    #shuffle!(evt)
+    evt = zeros(Int, length(startPoints))
+    for i=1:length(evt)
+        evt[i] = events[rand(1:length(events))]
+    end
+    
+    evtTab = @compat Dict{String,Any}("code" => evt,
+                                      "idx" => startPoints)
+    return rec, evtTab
 end
 
 

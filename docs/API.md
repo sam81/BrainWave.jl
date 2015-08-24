@@ -1,9 +1,11 @@
 # BrainWave
 
 ## Exported
+
 ---
 
-#### averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T<:Real, 2}}, N}, nSegments::Array{Dict{String, P<:Integer}, N})
+<a id="method__averageaverages.1" class="lexicon_definition"></a>
+#### averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T<:Real, 2}}, N}, nSegments::Array{Dict{String, P<:Integer}, N}) [¶](#method__averageaverages.1)
 Perform a weighted average of a list of averages. The weight of
 each average in the list is determined by the number of segments
 from which it was obtained.
@@ -23,12 +25,13 @@ from which it was obtained.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:37](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:34](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### averageEpochs{T<:Real}(rec::Dict{String, Array{T<:Real, 3}})
+<a id="method__averageepochs.1" class="lexicon_definition"></a>
+#### averageEpochs{T<:Real}(rec::Dict{String, Array{T<:Real, 3}}) [¶](#method__averageepochs.1)
 Average the epochs of a segmented recording.
 
 #### Arguments
@@ -43,17 +46,22 @@ Average the epochs of a segmented recording.
         
 #### Examples
 
+```julia
+epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+ave, nSegs = averageEpochs(segs)
+```
 
-    ave, nSegs = averageEpochs(rec)
 
 
-
-**source:**
-[BrainWave/src/BrainWave.jl:79](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:80](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### baselineCorrect!{T<:Real}(rec::Dict{String, Array{T<:Real, 3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
+<a id="method__baselinecorrect.1" class="lexicon_definition"></a>
+#### baselineCorrect!{T<:Real}(rec::Dict{String, Array{T<:Real, 3}}, baselineStart::Real, preDur::Real, sampRate::Integer) [¶](#method__baselinecorrect.1)
 Perform baseline correction by subtracting the average pre-event
 voltage from each channel of a segmented recording.
 
@@ -71,18 +79,19 @@ voltage from each channel of a segmented recording.
 
 
     #baseline window has the same duration of preDur
-    baselineCorrect(rec, -0.2, 0.2, 512)
+    baselineCorrect!(rec, -0.2, 0.2, 512)
     #now with a baseline shorter than preDur
-    baselineCorrect(rec, -0.15, 0.2, 512)
+    baselineCorrect!(rec, -0.15, 0.2, 512)
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:115](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:116](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### deleteSlice2D{T, P<:Integer}(x::AbstractArray{T, 2}, toRemove::Union(AbstractArray{P<:Integer, 1}, P<:Integer), axis::Integer)
+<a id="method__deleteslice2d.1" class="lexicon_definition"></a>
+#### deleteSlice2D{T, P<:Integer}(x::AbstractArray{T, 2}, toRemove::Union(AbstractArray{P<:Integer, 1}, P<:Integer), axis::Integer) [¶](#method__deleteslice2d.1)
 Delete a row or a column from a 2-dimensional array.
 
 #### Args
@@ -112,12 +121,13 @@ Delete a row or a column from a 2-dimensional array.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:306](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:307](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### deleteSlice3D{T, P<:Integer}(x::Array{T, 3}, toRemove::Union(AbstractArray{P<:Integer, 1}, P<:Integer), axis::Integer)
+<a id="method__deleteslice3d.1" class="lexicon_definition"></a>
+#### deleteSlice3D{T, P<:Integer}(x::Array{T, 3}, toRemove::Union(AbstractArray{P<:Integer, 1}, P<:Integer), axis::Integer) [¶](#method__deleteslice3d.1)
 Delete a slice from a 3-dimensional array.
 
 #### Args
@@ -139,12 +149,13 @@ Delete a slice from a 3-dimensional array.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:346](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:347](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### detrendEEG!{T<:Real}(rec::AbstractArray{T<:Real, 2})
+<a id="method__detrendeeg.1" class="lexicon_definition"></a>
+#### detrendEEG!{T<:Real}(rec::AbstractArray{T<:Real, 2}) [¶](#method__detrendeeg.1)
 Remove the mean value from each channel of an EEG recording.
 
 #### Arguments
@@ -153,18 +164,21 @@ Remove the mean value from each channel of an EEG recording.
 
 #### Examples
 
-    x = [1 2 3; 4 5 6]
-    detrendEEG!(x)
+```julia
+x = [1 2 3; 4 5 6]
+detrendEEG!(x)
+```
 
     
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:385](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:388](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### fftconvolve{T<:Real, R<:Real}(x::AbstractArray{T<:Real, 1}, y::AbstractArray{R<:Real, 1}, mode::String)
+<a id="method__fftconvolve.1" class="lexicon_definition"></a>
+#### fftconvolve{T<:Real, R<:Real}(x::AbstractArray{T<:Real, 1}, y::AbstractArray{R<:Real, 1}, mode::String) [¶](#method__fftconvolve.1)
 Convolve two 1-dimensional arrays using the FFT.
 
 #### Arguments
@@ -188,12 +202,13 @@ Convolve two 1-dimensional arrays using the FFT.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:498](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:501](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### filterContinuous!{T<:Real, P<:Real}(rec::AbstractArray{T<:Real, 2}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(AbstractArray{P<:Real, 1}, P<:Real))
+<a id="method__filtercontinuous.1" class="lexicon_definition"></a>
+#### filterContinuous!{T<:Real, P<:Real}(rec::AbstractArray{T<:Real, 2}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(P<:Real, AbstractArray{P<:Real, 1})) [¶](#method__filtercontinuous.1)
 Filter a continuous EEG recording.
     
 #### Arguments
@@ -220,12 +235,13 @@ Filter a continuous EEG recording.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:420](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:423](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(AbstractArray{P<:Real, 1}, P<:Real), channels::Union(AbstractArray{Q<:Integer, 1}, Q<:Integer))
+<a id="method__findartefactthresh.1" class="lexicon_definition"></a>
+#### findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1}), channels::Union(AbstractArray{Q<:Integer, 1}, Q<:Integer)) [¶](#method__findartefactthresh.1)
 
 Find epochs with voltage values exceeding a given threshold.
     
@@ -267,12 +283,13 @@ value, its length must match the number of channels to check.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:553](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:556](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(AbstractArray{P<:Real, 1}, P<:Real))
+<a id="method__findartefactthresh.2" class="lexicon_definition"></a>
+#### findArtefactThresh{T<:Real, P<:Real}(rec::Dict{String, Array{T<:Real, 3}}, thresh::Union(P<:Real, AbstractArray{P<:Real, 1})) [¶](#method__findartefactthresh.2)
 
 Find epochs with voltage values exceeding a given threshold.
     
@@ -314,12 +331,13 @@ value, its length must match the number of channels to check.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:553](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:556](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### findExtremum{T<:Real}(wave::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real)
+<a id="method__findextremum.1" class="lexicon_definition"></a>
+#### findExtremum{T<:Real}(wave::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real) [¶](#method__findextremum.1)
 Find the time point at which a waveform reaches a maximum or a minimum.
 
 #### Arguments:
@@ -345,12 +363,13 @@ Find the time point at which a waveform reaches a maximum or a minimum.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:636](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:639](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, maxLag::Real)
+<a id="method__getacf.1" class="lexicon_definition"></a>
+#### getACF{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, maxLag::Real) [¶](#method__getacf.1)
 Compute the autocorrelation function of a 1-dimensional signal.
 
 #### Arguments:
@@ -373,12 +392,13 @@ Compute the autocorrelation function of a 1-dimensional signal.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:686](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:689](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real)
+<a id="method__getautocorrelogram.1" class="lexicon_definition"></a>
+#### getAutocorrelogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real) [¶](#method__getautocorrelogram.1)
 Compute the autocorrelogram of a 1-dimensional array.
     
 #### Parameters
@@ -404,12 +424,13 @@ Compute the autocorrelogram of a 1-dimensional array.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:760](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:763](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real)
+<a id="method__getphasespectrum.1" class="lexicon_definition"></a>
+#### getPhaseSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real) [¶](#method__getphasespectrum.1)
 Compute the phase spectrum of a 1-dimensional array.
     
 #### Arguments
@@ -432,12 +453,13 @@ Compute the phase spectrum of a 1-dimensional array.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1194](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1197](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getSNR2{T<:Real, R<:Real}(spec::AbstractArray{T<:Real, 1}, freqArr::AbstractArray{R<:Real, 1}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
+<a id="method__getsnr2.1" class="lexicon_definition"></a>
+#### getSNR2{T<:Real, R<:Real}(spec::AbstractArray{T<:Real, 1}, freqArr::AbstractArray{R<:Real, 1}, sigFreq::Real, nSideComp::Integer, nExclude::Integer) [¶](#method__getsnr2.1)
 Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
 This function is the same as `getSNR`, but it additionaly returns the signal and noise magnitudes separately.
 
@@ -461,12 +483,13 @@ This function is the same as `getSNR`, but it additionaly returns the signal and
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1052](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1055](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getSNR{T<:Real, R<:Real}(spec::AbstractArray{T<:Real, 1}, freqArr::AbstractArray{R<:Real, 1}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
+<a id="method__getsnr.1" class="lexicon_definition"></a>
+#### getSNR{T<:Real, R<:Real}(spec::AbstractArray{T<:Real, 1}, freqArr::AbstractArray{R<:Real, 1}, sigFreq::Real, nSideComp::Integer, nExclude::Integer) [¶](#method__getsnr.1)
 Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
 
 #### Arguments
@@ -487,12 +510,13 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1018](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1021](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Real, winLength::Real, overlap::Real)
+<a id="method__getspectrogram.1" class="lexicon_definition"></a>
+#### getSpectrogram{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Real, winLength::Real, overlap::Real) [¶](#method__getspectrogram.1)
 Compute the spectrogram of a 1-dimensional array.
     
 #### Parameters
@@ -521,12 +545,13 @@ If the signal length is not a multiple of the window length it is trucated.
     
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1091](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1094](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), sampRate::Integer)
+<a id="method__getspectrum.1" class="lexicon_definition"></a>
+#### getSpectrum{T<:Real}(sig::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), sampRate::Integer) [¶](#method__getspectrum.1)
 Compute the power spectrum of a 1-dimensional array.
     
 #### Arguments
@@ -549,12 +574,13 @@ Compute the power spectrum of a 1-dimensional array.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1132](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1135](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### meanERPAmplitude{T<:Real}(wave::Union(AbstractArray{T<:Real, 1}, AbstractArray{T<:Real, 2}), center::Real, centerType::String, winLength::Real, sampRate::Real)
+<a id="method__meanerpamplitude.1" class="lexicon_definition"></a>
+#### meanERPAmplitude{T<:Real}(wave::Union(AbstractArray{T<:Real, 2}, AbstractArray{T<:Real, 1}), center::Real, centerType::String, winLength::Real, sampRate::Real) [¶](#method__meanerpamplitude.1)
 Compute the mean amplitude of an ERP waveform in a time window centered on a given point.
 
 #### Arguments:
@@ -585,12 +611,13 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1252](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1255](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String, Any}, trigList::AbstractArray{T<:Integer, 1}, newTrig::Integer)
+<a id="method__mergeeventtablecodes.1" class="lexicon_definition"></a>
+#### mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String, Any}, trigList::AbstractArray{T<:Integer, 1}, newTrig::Integer) [¶](#method__mergeeventtablecodes.1)
 Substitute the event table triggers listed in `trigList`
 with newTrig
 
@@ -603,16 +630,19 @@ with newTrig
 #### Examples
 
 ```julia
-mergeEventTableCodes!(evtTab, [200, 220], 999)
+rec, evtTab= simulateRecording(events=[1,2,3,4])
+mergeEventTableCodes!(evtTab, [1,2], 1)
+mergeEventTableCodes!(evtTab, [3,4], 3)
 ```
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1314](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1319](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### nextPowTwo(x::Real)
+<a id="method__nextpowtwo.1" class="lexicon_definition"></a>
+#### nextPowTwo(x::Real) [¶](#method__nextpowtwo.1)
 Find the exponent of the next power of 2 closest to `x`.
 
 #### Arguments
@@ -628,12 +658,13 @@ isequal(2^(nextPowTwo(6)), 2^3)
 ```
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1334](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1339](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### removeEpochs!{T<:Real, P<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, toRemove::Dict{String, Array{P<:Integer, 1}})
+<a id="method__removeepochs.1" class="lexicon_definition"></a>
+#### removeEpochs!{T<:Real, P<:Integer}(rec::Dict{String, Array{T<:Real, 3}}, toRemove::Dict{String, Array{P<:Integer, 1}}) [¶](#method__removeepochs.1)
 Remove epochs from a segmented recording.
     
 #### Parameters
@@ -644,31 +675,41 @@ Remove epochs from a segmented recording.
 #### Examples
 
 ```julia
-removeEpochs!(segs, toRemoveDict)
+epochDur=0.5; preDur=0.15; events=[1,2];
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+segsToReject = (String => Array{Int,1})[]
+segsToReject["1"] = [3,5]
+segsToReject["2"] = [1,2]
+#toRemove = @compat Dict("1" => [3,5], "2" => [2])
+removeEpochs!(segs, segsToReject)
 ```
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1354](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1366](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array{Int64, N}, minTrigDur::Real)
+<a id="method__removespurioustriggers.1" class="lexicon_definition"></a>
+#### removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array{Int64, N}, minTrigDur::Real) [¶](#method__removespurioustriggers.1)
 
 #### Examples
 
 ```julia
-res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
+#not run
+#res_info = removeSpuriousTriggers!(evtTab, behav_trigs, 0.0004)
 ```
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1371](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1384](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### rerefCnt!{T<:Real}(rec::AbstractArray{T<:Real, 2}, refChan::Integer)
+<a id="method__rerefcnt.1" class="lexicon_definition"></a>
+#### rerefCnt!{T<:Real}(rec::AbstractArray{T<:Real, 2}, refChan::Integer) [¶](#method__rerefcnt.1)
 Rereference channels in a continuous recording.
 
 #### Parameters
@@ -680,16 +721,18 @@ Rereference channels in a continuous recording.
 #### Examples
 
 ```julia
-rerefCnt!(dats, refChan=4, channels=[1, 2, 3])
+rec, evtTab = simulateRecording(nChans=4)
+rerefCnt!(rec, 4, channels=[1, 2, 3])
 ```
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1433](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1447](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### segment{T<:Real}(rec::AbstractArray{T<:Real, 2}, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer)
+<a id="method__segment.1" class="lexicon_definition"></a>
+#### segment{T<:Real}(rec::AbstractArray{T<:Real, 2}, eventTable::Dict{String, Any}, epochStart::Real, epochEnd::Real, sampRate::Integer) [¶](#method__segment.1)
 Segment a continuous EEG recording into discrete event-related epochs.
     
 #### Parameters
@@ -716,25 +759,67 @@ Segment a continuous EEG recording into discrete event-related epochs.
 #### Examples
 
 ```julia
-segs, nSegs = segment(dats, evtTab, -0.2, 0.8, 512, eventsList=[200, 201], eventsLabelsList=["cnd1", "cnd2"])
+epochDur=0.5; preDur=0.2; events=[1,2]; sampRate=256;
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events, sampRate=sampRate)
+segs, nSegs = segment(rec, evtTab, -preDur, epochDur, sampRate, eventsList=[1, 2], eventsLabelsList=["cnd1", "cnd2"])
 ```
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:1479](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+*source:*
+[BrainWave/src/BrainWave.jl:1495](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+
+---
+
+<a id="method__simulaterecording.1" class="lexicon_definition"></a>
+#### simulateRecording() [¶](#method__simulaterecording.1)
+Generate a simulated EEG recordings. Not physiologically plausible.
+Mainly useful for testing purposes.
+
+##### Parameters
+
+* `nChans`: Number of channels.
+* `dur`: duration of the recordings, in seconds.
+* `sampRate`: Sampling rate.
+* `events`: A list of event codes.
+* `epochDur`: Duration of an ERP epoch.
+* `preDur`: Duration of the pre-stimulus baseline.
+* `minVolt`: Minimum possible voltage value.
+* `maxVolt`: Maximum possible voltage value.
+
+##### Returns
+
+* `rec`: A nChannelsXnSamples data matrix with values randomly drawn from
+     a uniform distribution between minVolt and maxVolts.
+* `evtTab`: The event table with event codes and indexes of the samples at which
+    events start.
+
+##### Examples
+
+```julia
+rec, evtTab = simulateRecording()
+rec, evtTab = simulateRecording(dur=180, events=[1,2,3])
+```
+
+
+
+*source:*
+[BrainWave/src/BrainWave.jl:1569](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ## Internal
----
-
-#### _centered(arr, newsize)
-
-
-**source:**
-[BrainWave/src/BrainWave.jl:467](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
 ---
 
-#### baselineCorrectloop!{T<:Real}(rec::Dict{String, Array{T<:Real, 3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
+<a id="method___centered.1" class="lexicon_definition"></a>
+#### _centered(arr, newsize) [¶](#method___centered.1)
+
+
+*source:*
+[BrainWave/src/BrainWave.jl:470](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
+
+---
+
+<a id="method__baselinecorrectloop.1" class="lexicon_definition"></a>
+#### baselineCorrectloop!{T<:Real}(rec::Dict{String, Array{T<:Real, 3}}, baselineStart::Real, preDur::Real, sampRate::Integer) [¶](#method__baselinecorrectloop.1)
 Perform baseline correction by subtracting the average pre-event
 voltage from each channel of a segmented recording.
 
@@ -757,7 +842,6 @@ voltage from each channel of a segmented recording.
 
 
 
-**source:**
-[BrainWave/src/BrainWave.jl:154](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
-
+*source:*
+[BrainWave/src/BrainWave.jl:155](file:///home/sam/.julia/v0.3/BrainWave/src/BrainWave.jl)
 
