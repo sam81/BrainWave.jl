@@ -29,7 +29,19 @@ from which it was obtained.
 
 #### Examples
 
-    aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
+```julia
+epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+ave, nSegs = averageEpochs(segs)
+
+rec2, evtTab2 = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs2, nRaw2 = segment(rec2, evtTab2, -preDur, epochDur, sampRate)
+ave2, nSegs2 = averageEpochs(segs2)
+
+aveList = [ave, ave2]; nCleanByBlock = [nRaw, nRaw2]
+aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
+```
 
 """->
 function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}})
@@ -107,11 +119,16 @@ voltage from each channel of a segmented recording.
     
 #### Examples
 
+```julia
+epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
 
-    #baseline window has the same duration of preDur
-    baselineCorrect!(rec, -0.2, 0.2, 512)
-    #now with a baseline shorter than preDur
-    baselineCorrect!(rec, -0.15, 0.2, 512)
+#baseline window has the same duration of preDur
+baselineCorrect!(segs, -preDur, preDur, sampRate)
+#now with a baseline shorter than preDur
+baselineCorrect!(segs, -0.15, preDur, sampRate)
+```
 
 """->
 function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
@@ -131,150 +148,6 @@ function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::
     
 end
 
-@doc doc"""
-Perform baseline correction by subtracting the average pre-event
-voltage from each channel of a segmented recording.
-
-#### Parameters
-* `rec::Dict{String,Array{Real,3}}`: The segmented recording.
-* `baselineStart::Real`: Start time of the baseline window relative to the event onset, in seconds.
-                          The absolute value of `baselineStart` cannot be greater than `preDur`.
-                          In practice `baselineStart` allows you to define a baseline window shorter
-                          than the time window before the experimental event (`preDur`).
-* `preDur::Real`: Duration of recording before the experimental event, in seconds.
-* `sampRate::Integer`: The samplig rate of the EEG recording.
-    
-#### Examples
-
-
-    #baseline window has the same duration of pre_dur
-    baselineCorrect(rec, -0.2, 0.2, 512)
-    #now with a baseline shorter than pre_dur
-    baselineCorrect(rec, -0.15, 0.2, 512)
-
-"""->
-function baselineCorrectloop!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
-    
-    eventList = collect(keys(rec))
-    epochStartSample = int(round(preDur*sampRate))
-    baselineStartSample = int((epochStartSample+1) - abs(round(baselineStart*sampRate)))
- 
-    
-    for i=1:length(eventList) #for each event
-        for j=1:size(rec[eventList[i]])[3] #for each epoch
-            for k=1: size(rec[eventList[i]])[1] #for each electrode
-                thisBaseline = mean(rec[eventList[i]][k,baselineStartSample:epochStartSample,j])
-                for s=1:size(rec[eventList[i]])[2] #for each sample     
-                    rec[eventList[i]][k,s,j] = rec[eventList[i]][k,s,j] - thisBaseline
-                end
-            end
-        end
-    end
-end
-
-## @doc doc"""
-##     ## Take a dictionary containing in each key a list of segments, and chain these segments
-##     ## into chunks of length nChunks
-##     ## baselineDur is for determining what is the zero point
-##     ## startTime and endTime are given with reference to the zero point
-
-##    Take a dictionary containing in each key a list of segments, and chain these segments
-##     into chunks of length `nChunks`. `baselineDur` is for determining what is the zero point.
-##     `start` and `end` are given with reference to the zero point.
-##     This chaining technique is used to increase the spectral resolution of FFT analyses
-##     of auditory steady-state responses.
-
-##     Parameters
-##     ----------
-##     rec : dict of 3D arrays
-##         The segmented recordings for each experimental condition.
-##     nChunks : int
-##         The number of segments to chain together for each chunk.
-##     sampRate : int
-##         The EEG recording sampling rate.
-##     start : float
-##         Start time of the epoch segments to be chained, in seconds.
-##     end : float
-##         End time of the epoch segments to be chained, in seconds.
-##     baselineDur : float
-##         Duration of the baseline, in seconds.
-
-##     Returns
-##     ----------
-##     eegChained : dict of 2D arrays
-##         The chained recordings for each experimental condition.
-
-##     Examples
-##     ----------
-##     >>> chainSegments(rec, nChunks=20, sampRate=2048, start=0, end=0.5, baselineDur=0.1)
-## """->
-## function chainSegments(rec, nChunks::Integer, sampRate::Integer, startTime::Real, endTime::Real, baselineDur::Real, window)
-
-##     baselinePnts = round(baselineDur * sampRate)
-##     startPnt = int(round(startTime*sampRate) + baselinePnts) +1
-##     endPnt = int(round(endTime*sampRate) + baselinePnts) 
-##     chunkSize = ((endPnt - startPnt)+1)
-##     sweepSize = chunkSize * nChunks
-
-##     if window != "none"
-##         n = chunkSize
-##         if window == "hamming"
-##             w = hamming(n)
-##         elseif window == "hanning"
-##             w = hanning(n)
-##         elseif window == "blackman"
-##             w = blackman(n)
-##         elseif window == "bartlett"
-##             w = bartlett(n)
-##         end
-##     end
-    
-##     nReps = (String => Array{Int,1})[]
-##     eventList = collect(keys(rec))
-##     eegChained = (String => Array{eltype(rec[eventList[1]]),2})[]
-##     fromeegChainedAve = (String => Array{eltype(rec[eventList[1]]),2})[]
-##     for i=1:length(eventList)
-##         currCode = eventList[i]
-##         eegChained[currCode] = zeros(eltype(rec[eventList[1]]), size(rec[currCode])[1], sweepSize)  #two-dimensional array of zeros
-##         #fromeegChainedAve[currCode] = zeros(size(rec[currCode])[1], chunkSize)
-##         nReps[currCode] = zeros(Int, nChunks)
-##         p = 1
-##         k = 1
-##         while k <= size(rec[currCode])[3]
-##             if p > (nChunks)
-##                 p = 1
-##             end
-            
-##             idxChunkStart = ((p-1)*chunkSize)+1
-##             idxChunkEnd = (idxChunkStart + chunkSize)-1
-##             eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] + rec[currCode][:,startPnt:endPnt, k]
-##             nReps[currCode][p] = nReps[currCode][p] + 1
-##             #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] + rec[currCode][:,startPnt:endPnt, k]
-##             p = p+1 #p is the chunk counter
-##             k = k+1 #k is the epoch counter
-##         end
-##     end
-##     for i=1:length(eventList)
-##         currCode = eventList[i]
-##         for p=1:nChunks
-##             idxChunkStart = ((p-1)*chunkSize)+1
-##             idxChunkEnd = (idxChunkStart + chunkSize)-1
-##             if window == nothing
-##                 eegChained[currCode][:,idxChunkStart:idxChunkEnd] = eegChained[currCode][:,idxChunkStart:idxChunkEnd] / nReps[currCode][p]
-##             else
-##                 for chn=1:size(eegChained[currCode])[1]
-##                     eegChained[currCode][chn,idxChunkStart:idxChunkEnd] = eegChained[currCode][chn,idxChunkStart:idxChunkEnd].*w' / nReps[currCode][p]
-               
-##                 end
-##             end
-##         end
-##         #fromeegChainedAve[currCode] = fromeegChainedAve[currCode] / sum(nReps[currCode])
-##     end
-        
-##     return eegChained
-## end
-
-
 
 @doc doc"""
 Delete a row or a column from a 2-dimensional array.
@@ -291,6 +164,7 @@ Delete a row or a column from a 2-dimensional array.
 
 #### Examples
 
+```julia
     x = [1 2 3 4;
          5 6 7 8;
          9 10 11 12;
@@ -303,6 +177,7 @@ Delete a row or a column from a 2-dimensional array.
     isequal(deleteSlice2D(x, [1,4], 1), x[2:3,:])
     # remove columns 1 and 4
     isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
+```
 
 """->
 function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union(P, AbstractVector{P}), axis::Integer)
@@ -339,10 +214,12 @@ Delete a slice from a 3-dimensional array.
 
 #### Examples
 
+```julia
     x = reshape([1:27], 3,3,3)
     deleteSlice3D(x, 2, 1)
     deleteSlice3D(x, [2,3], 3)
     isequal(deleteSlice3D(x, [2,3], 3), x[:,:, [1]])
+```
 
 """->
 function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union(P, AbstractVector{P}), axis::Integer)
@@ -417,8 +294,11 @@ Filter a continuous EEG recording.
         
 #### Examples
 
-
-    filterContinuous!(rec, 2048, "highpass", 512, [30], channels=[0,1,2,3], transitionWidth=0.2)
+```julia
+    sampRate = 2048; nTaps=512
+    rec, evtTab = simulateRecording(nChans=4, dur=120, sampRate=sampRate)
+    filterContinuous!(rec, sampRate, "highpass", nTaps, [30], channels=[1,2,3,4], transitionWidth=0.2)
+```
 
 """->
 function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(P, AbstractVector{P});
@@ -494,9 +374,11 @@ Convolve two 1-dimensional arrays using the FFT.
 
 #### Examples
 
+```julia
     x = rand(1:10, 10)
     y = rand(1:10, 10)
     fftconvolve(x, y, "same")
+```
 
 """->
 function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R}, mode::String)
@@ -545,12 +427,18 @@ value, its length must match the number of channels to check.
     
 #### Examples
 
+```julia
+    epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+    rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+    segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
     # on all channels
-    findArtefactThresh(segs, 65)
+    badSegs = findArtefactThresh(segs, 65)
     # on channels 1 and 2
-    findArtefactThresh(segs, 65, [1,2])
-    # on channels FP1 and F4
-    findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
+    badSegs = findArtefactThresh(segs, 65, [1,2])
+    # on channels FP1 and F4 #not run
+    #findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
+```
+
 
 
 """ ->
@@ -781,223 +669,6 @@ function getAutocorrelogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatri
     timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
     return acfMatrix, lags, timeArray3
 end
-
-## @doc doc"""
-## Compute signal to noise ratio (SNR) of one or more signals from a fast
-## fourier transform (FFT) and test the SNR significance using an F-test.
-
-## #### Parameters
-
-##     ffts : dict 
-##         The FFTs for each experimental condition. The FFTs should be in the same
-##         format as returned by the :func:`getSpectrum` function, i.e. a dictionary with
-##         `freq` and `mag` keys.
-##     freqs : array of floats
-##         The frequencies of the signals.
-##     nSideComp : int
-##         The number of components adjacent to each side of the signal components
-##         from which to estimate the noise power. `nSideComp` above and `nSideComp`
-##         below each signal will be used for each noise-power estimate. In other words,
-##         the noise power around each signal component will be estimated from `2*nSideComp`
-##         components.
-##     nExcludedComp: int
-##         To avoid that spectral leaks from the signal affect the noise-power estimate,
-##         the `nExcludedComp` components just above and the `nExcludeComp` components just
-##         below the signal will not be used for estimating noise power.
-##     otherExclude : array of ints
-##         The frequencies of other components to exclude from the computation of the noise power.
-##         This may be useful to exclude components corresponding to distortion products
-##         generated by the signal. The `nExcludedComp` components just above and the
-##         `nExcludeComp` components just below each component in `otherExclude` will
-##         also be excluded.
-
-## #### Returns
-
-##     res : dict with the following keys
-##        - fftVals : dict
-##           The signal and noise power for each component and experimental condition.
-##           Each key of `fftVals` corresponds to an experimental condition. For each
-##           experimental condition there is a dictionary with keys `noisePow` and `sigPow`
-##           that list the noise and signal power for each component given in `freqs`.
-##        - fRatio :
-##           The F and corresponding p-value for each component and experimental condition.
-##           Each key of `fRatio` corresponds to an experimental condition. For each
-##           experimental condition there is a dictionary with keys `F` and `pval`
-##           that list the F and p value for each component given in `freqs`.
-##        - compIdx : list
-##           The indexes of the signal frequencies in the FFT array.
-##        - sideBandsIdx : list
-##           The indexes of the noise side bands in the FFT array.
-##           A separate sub-list is returned for each component specified in `freqs`. 
-##        - excludedIdx : list
-##           The indexes of the components excluded from the noise side bands.
-##        - minSideFreq : list
-##           For each signal, the lowest frequency of the noise bands.
-##        - maxSideFreq : list
-##           For each signal, the highest frequency of the noise bands.
-        
-## #### Examples
-
-##     getFRatios(ffts=ffts, freqs=[30, 75], nSideComp=30, nExcludedComp=1, otherExclude=[25, 68])
-
-## """->
-## function getFRatios(ffts, freqs, nSideComp, nExcludedComp, otherExclude)
-
-##     cnds = collect(keys(ffts))
-##     compIdx = (Int)[]
-##     for freq in freqs
-##         thisIdx = find(abs(ffts[cnds[1]]["freq"] .- freq) .== minimum(abs(ffts[cnds[1]]["freq"] .- freq)))
-##         append!(compIdx, thisIdx)
-##     end
-##     sideBandsIdx = (Int)[]
-##     idxProtect = (Int)[]
-##     fftVals = (String => Any)[]
-##     fRatio = (String => Any)[]
-##     dfNum = 2
-##     dfDenom = 2*(nSideComp*2) -1
-##     for cnd in cnds
-##         fRatio[cnd] = (String => Array{Float64, 1})[]
-##         fftVals[cnd] = (String => Array{Float64, 1})[]
-##         fRatio[cnd]["F"] = []
-##         fRatio[cnd]["pval"] = []
-##         fftVals[cnd]["sigPow"] = []
-##         fftVals[cnd]["noisePow"] = []
-##         sideBands, sideBandsIdx, idxProtect = getNoiseSidebands(freqs, nSideComp, nExcludedComp, ffts[cnd], otherExclude)
-##         for c=1:length(compIdx)
-##             noisePow = mean(sideBands[c])
-##             sigPow = ffts[cnd]["mag"][compIdx[c]]
-##             thisF =  sigPow/ noisePow
-##             fftVals[cnd]["sigPow"] = vcat(fftVals[cnd]["sigPow"], sigPow)
-##             fftVals[cnd]["noisePow"] = vcat(fftVals[cnd]["noisePow"], noisePow)
-##             fRatio[cnd]["F"] = vcat(fRatio[cnd]["F"], thisF)
-##             fRatio[cnd]["pval"] = vcat(fRatio[cnd]["pval"], pdf(FDist(dfNum, dfDenom), thisF))
-##         end
-##     end
-##     minSideFreq = (FloatingPoint)[]
-##     maxSideFreq = (FloatingPoint)[]
-##     for c=1:length(compIdx)
-##         push!(minSideFreq, ffts[cnds[1]]["freq"][minimum(sideBandsIdx[c])])
-##         push!(maxSideFreq, ffts[cnds[1]]["freq"][maximum(sideBandsIdx[c])])
-##     end
-##     res = (String => Any)["fftVals" => fftVals,
-##                           "fRatio" => fRatio,
-##                           "compIdx" => compIdx,
-##                           "sideBandsIdx" => sideBandsIdx,
-##                           "excludedIdx"  => idxProtect,
-##                           "minSideFreq" => minSideFreq,
-##                           "maxSideFreq" => maxSideFreq]
-##     return res
-## end
-
-## @doc doc"""
-## the 2 has the possibility to exclude extra components, useful for distortion products
-## components: a list containing the indexes of the target components
-## nCompSide: number of components used for each side band
-## n_exclude_side: number of components adjacent to to the target components to exclude
-## fft_array: array containing the fft values
-
-##     Given one or more signal frequencies, get, for each signal frequency, the 
-##     power in frequency bins adjacent to the signal frequency. The results can be used to
-##     estimate *local* noise in signal-to-noise-ratio computations.
-
-##     Parameters
-##     ----------
-##     componentsFreq : list of floats
-##         The frequencies of the signal components.
-##     nCompSide : int
-##         The number of components adjacent to each side of the signal components
-##         from which to estimate the noise power. `nSideComp` above and `nSideComp`
-##         below each signal will be used for each noise-power estimate. In other words,
-##         the noise power around each signal component will be estimated from `2*nSideComp`
-##         components.
-##     nExcludedComp : int
-##         To avoid that spectral leaks from the signal affect the noise-power estimate,
-##         the `nExcludedComp` components just above and the `nExcludedComp` components just
-##         below the signal will not be used for estimating noise power.
-##     FFTDict: dict with the following keys
-##        - mag : array of floats
-##            The array containing the FFT magnitude values.
-##        - freq : array of floats
-##            The array containing the FFT frequencies.
-##     otherExclude : array of ints
-##         The frequencies of other components to exclude from the computation of the noise power.
-##         This may be useful to exclude components corresponding to distortion products
-##         generated by the signal. The `nExcludedComp` components just above and the
-##         `nExcludedComp` components just below each component in `otherExclude` will
-##         also be excluded.
-
-##     Returns
-##     ----------
-##     noiseBands : list
-##         The spectral magnitude of the noise bands. A separate sub-list is returned for
-##         each component specified in `freqs`. 
-##     noiseBandsIdx : list
-##         The indexes of the frequency bins in `fftDict` corresponding to the noise bands.
-##         A separate sub-list is returned for each component specified in `freqs`. 
-##     idxProtect : list
-##         The indexes of the frequency bins in `fftDict` that were excluded from
-##         the noise power computation.
-    
-##     Examples
-##     ----------
-##     >>> getNoiseSidebands(compIdx=[40, 44], nSideComp=30, nExcludedComp=2, FFTDict=ffts, otherExclude=[36, 42])
-## """->
-## function getNoiseSidebands(freqs, nCompSide, nExcludedComp, fftDict, otherExclude)
-
-##     compIdx = (Int)[]
-##     for freq in freqs
-##         thisIdx = find(abs(fftDict["freq"] .- freq) .== minimum(abs(fftDict["freq"] .- freq)))
-##         append!(compIdx, thisIdx)
-##     end
-    
-##     idxProtect = []; idxProtect = vcat(idxProtect, compIdx)
-##     if otherExclude != nothing
-##         otherExcludeIdx = (Int)[]
-##         for i=1:length(otherExclude)
-##             append!(otherExcludeIdx, find(abs(fftDict["freq"] .- otherExclude[i]) .== minimum(abs(fftDict["freq"] .- otherExclude[i]))))
-##         end
-##         idxProtect = vcat(idxProtect, otherExcludeIdx)
-##     end
-    
-##     for i=1:nExcludedComp
-##         idxProtect = vcat(idxProtect, compIdx .+ i)
-##         idxProtect = vcat(idxProtect, compIdx .- i)
-##         for j=1:length(otherExclude)
-##             push!(idxProtect, otherExcludeIdx[j] .- i)
-##             push!(idxProtect, otherExcludeIdx[j] .+ i)
-##         end
-##     end
-##     idxProtect = sort(idxProtect)
-
-##     noiseBands = (Any)[]
-##     noiseBandsIdx = (Any)[]
-##     for i=1:length(compIdx)
-##         loSide = []; hiSide = []
-##         loSideIdx = (Int)[]; hiSideIdx = (Int)[]
-##         counter = 1
-##         while length(hiSide) < nCompSide
-##             currIdx = compIdx[i] + nExcludedComp + counter
-##             if in(currIdx, idxProtect) == false
-##                 hiSide = vcat(hiSide, fftDict["mag"][currIdx])
-##                 push!(hiSideIdx, currIdx)
-##             end
-##             counter = counter + 1
-##         end
-##         counter = 1
-##         while length(loSide) < nCompSide
-##             currIdx = compIdx[i] - nExcludedComp - counter
-##             if in(currIdx, idxProtect) == false
-##                 loSide = vcat(loSide, fftDict["mag"][currIdx])
-##                 push!(loSideIdx, currIdx)
-##             end
-##             counter = counter + 1
-##         end
-##         push!(noiseBands, vcat(loSide, hiSide))
-##         push!(noiseBandsIdx, vcat(loSideIdx, hiSideIdx))
-##         #noiseBands = vcat(noiseBands, loSide+hiSide)
-##     end
-##     return noiseBands, noiseBandsIdx, idxProtect
-## end
 
 @doc doc"""
 Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
@@ -1353,7 +1024,7 @@ Remove epochs from a segmented recording.
 #### Examples
 
 ```julia
-epochDur=0.5; preDur=0.15; events=[1,2];
+epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
 rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
 segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
 segsToReject = (String => Array{Int,1})[]
