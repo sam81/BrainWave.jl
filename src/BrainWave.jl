@@ -154,7 +154,7 @@ end
 @doc doc"""
 Delete a row or a column from a 2-dimensional array.
 
-#### Args
+#### Arguments
 
 * `x::AbstractMatrix{T}`: the 2-dimensional array from which rows of columns should be deleted.
 * `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the rows/columns to remove.
@@ -206,7 +206,7 @@ end
 @doc doc"""
 Delete a slice from a 3-dimensional array.
 
-#### Args
+#### Arguments
 
 * `x::Array{T, 3}`: the 3-dimensional array from which rows of columns should be deleted.
 * `toRemove::Union(Integer, AbstractVector{Integer})`: an integer or a list of integers indicating the slices to remove.
@@ -306,7 +306,7 @@ Filter a continuous EEG recording.
 
 """->
 function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T}, sampRate::Integer, filterType::String, nTaps::Integer, cutoffs::Union(P, AbstractVector{P});
-                                             channels::Union(Q, AbstractVector{Q})=[1:size(rec,1)], transitionWidth::Real=0.2)
+                                             channels::Union(Q, AbstractVector{Q})=collect(1:size(rec,1)), transitionWidth::Real=0.2)
     if filterType == "lowpass"
         f3 = cutoffs[1]
         f4 = cutoffs[1] * (1+transitionWidth)
@@ -403,7 +403,7 @@ end
 
 Find epochs with voltage values exceeding a given threshold.
     
-#### Args
+#### Arguments
 
 * `rec::Dict{String, Array{Real, 3}}`: The segmented recording.
 * `thresh::Union(Real, AbstractVector{Real})`: The threshold value(s).
@@ -443,9 +443,7 @@ value, its length must match the number of channels to check.
     #findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
 ```
 
-
-
-""" ->
+"""->
 function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T, 3}}, thresh::Union(P, AbstractVector{P}),
                                                           channels::Union(Q, AbstractVector{Q})=collect(1:size(rec[collect(keys(rec))[1]], 1)))
 
@@ -549,7 +547,7 @@ Find the time point at which a waveform reaches a maximum or a minimum.
     l1 = LineX(timePnt, color="red")
     add(p, l1)
     display(p)
-```
+    ```
 
 """->
 function findExtremum{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T}), searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real)
@@ -587,7 +585,7 @@ end
 @doc doc"""
 Compute the autocorrelation function of a 1-dimensional signal.
 
-#### Arguments:
+##### Arguments:
 
 * `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})`: the signal for which the autocorrelation should be computed.
 * `samprate::Real`: the sampling rate of the signal.
@@ -596,14 +594,24 @@ Compute the autocorrelation function of a 1-dimensional signal.
 * `window::Function`: The type of window to apply to the signal before computing its ACF (see DSP.jl).
                       Choose `rect` if you don't want to apply any window.
 
-#### Returns
+##### Returns
 
 * `acf::Array{Real,1}`: the autocorrelation function.
 * `lags::Array{Real,1}`: the time lags for which the autocorrelation function was computed.
 
-### Examples
+##### Examples
 
+    ```julia
+    using DSP
+    sampRate = 48000
+    dur = 1
+    nSamp = round(Int, sampRate*dur)
+    tArr = collect(0:nSamp-1)/sampRate
+    freq = 440
+    sig = sin(2*pi*freq*tArr)
+    maxLag = 1/200
     acf, lags = getACF(sig, sampRate, maxLag, normalize=true, window=hamming)
+    ```
 
 """->
 function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
@@ -636,6 +644,7 @@ function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampR
         end
         sig = vec(sig)
     end
+    
     n = length(sig)
     w = window(n)
     sig = sig.*w
@@ -646,7 +655,7 @@ function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampR
     end
     out = xcorr(sig, sig)[n:n+maxLagPnt-1]
 
-    lags = [1:maxLagPnt]./sampRate
+    lags = collect(1:maxLagPnt)./sampRate
     
     if normalize == true
         out = out ./ maximum(out)
@@ -658,7 +667,7 @@ end
 @doc doc"""
 Compute the autocorrelogram of a 1-dimensional array.
     
-#### Parameters
+#### Arguments
 * `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})` The signal of which the autocorrelogram should be computed.
 * `sampRate::Real`: The sampling rate of the signal.
 * `winLength::Real`: The length of the window over which to take the ACF, in seconds.
@@ -676,8 +685,10 @@ Compute the autocorrelogram of a 1-dimensional array.
 
 ### Examples
 
+    ```julia
     sig = rand(512)
     acg, lags, t = getAutocorrelogram(sig, 256, 0.02, 30, 0.01)
+    ```
 
 """->
 function getAutocorrelogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
@@ -718,7 +729,11 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
 
 #### Examples
 
-    getSNR(pspec, freq, 140, 10, 1)
+    ```julia
+    sig = rand(512)
+    p, f = getSpectrum(sig, 256)
+    snr = getSNR(p, f, 140, 10, 1)
+    ```
 
 """->
 function getSNR{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
@@ -752,7 +767,11 @@ This function is the same as `getSNR`, but it additionaly returns the signal and
 
 #### Examples
 
-    snr, sigMag, noiseMag = getSNR2(pspec, freq, 140, 10, 1)
+    ```julia
+    sig = rand(512)
+    p, f = getSpectrum(sig, 256)
+    snr, sigMag, noiseMag = getSNR2(p, f, 140, 10, 1)
+    ```
 
 """->
 function getSNR2{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
@@ -769,7 +788,7 @@ end
 @doc doc"""
 Compute the spectrogram of a 1-dimensional array.
     
-#### Parameters
+#### Arguments
 * `sig::Union(AbstractVector{Real}, AbstractMatrix{Real})` The signal of which the spectrum should be computed.
 * `sampRate::Real`: The sampling rate of the signal.
 * `winLength::Real`: The length of the window over which to take the FFTs, in seconds.
@@ -790,8 +809,10 @@ If the signal length is not a multiple of the window length it is trucated.
 
 #### Examples
 
+    ```julia
     sig = rand(512)
     spec, f, t = getSpectrogram(sig, 256, 0.02, 30)
+    ```
     
 """->
 function getSpectrogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real; window::Function=rect, powerOfTwo::Bool=false)
@@ -831,8 +852,10 @@ Compute the power spectrum of a 1-dimensional array.
 
 #### Examples
 
+    ```julia
     sig = rand(512)
     p, f = getSpectrum(sig, 256)
+    ```
 
 """->
 function getSpectrum{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Integer; window::Function=rect, powerOfTwo::Bool=false)
@@ -893,8 +916,10 @@ Compute the phase spectrum of a 1-dimensional array.
 
 #### Examples
 
+    ```julia
     sig = rand(512)
     p, f = getPhaseSpectrum(sig, 256)
+    ```
 
 """->
 function getPhaseSpectrum{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real; window::Function=rect, powerOfTwo::Bool=false)
@@ -945,14 +970,37 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
 
 ### Examples
 
-    P2WinLength = 0.050
-    centerPoint = 2512
-    sampRate = 8192
-    meanAmp =  meanERPAmplitude(wave, centerPoint, "point", P2WinLength, sampRate)
+    ```julia
+    ## not run
+    ## P2WinLength = 0.050
+    ## centerPoint = 2512
+    ## sampRate = 8192
+    ## meanAmp =  meanERPAmplitude(wave, centerPoint, "point", P2WinLength, sampRate)
 
-    epochStart = -0.150
-    centerPointTm = 0.156
-    meanAmp =  meanERPAmplitude(wave, centerPointTm, "time", P2WinLength, sampRate)
+    ## epochStart = -0.150
+    ## centerPointTm = 0.156
+    ## meanAmp =  meanERPAmplitude(wave, centerPointTm, "time", P2WinLength, sampRate)
+
+    # contrived example
+    using Winston
+    sampRate = 256
+    dur = 0.6
+    epochStart = -0.15
+    P2SearchStart = 0.150
+    P2SearchStop = 0.250
+    nSamp = round(Int, dur*sampRate)
+    freq = 2
+    phase = 1/4*(-pi)
+    tArr = collect(0:nSamp-1)/sampRate + epochStart
+    wave1 = sin(2*pi*freq*tArr+phase)
+    wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
+    sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
+    p = plot(tArr, wave1)
+    l1 = LineX(timePnt, color="red")
+    add(p, l1)
+    display(p)
+    meanAmp =  meanERPAmplitude(wave1, sampPnt, "point", 0.05, sampRate)
+    ```
 
 """->
 function meanERPAmplitude{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T}), center::Real, centerType::String, winLength::Real, sampRate::Real)
@@ -1005,7 +1053,7 @@ end
 Substitute the event table triggers listed in `trigList`
 with newTrig
 
-#### Parameters
+#### Arguments
 
 * `eventTable::Dict{String,Any}`: The event table.
 * `trigList::AbstractVector{Integer}`: The list of triggers to substitute.
@@ -1013,11 +1061,12 @@ with newTrig
 
 #### Examples
 
-```julia
-rec, evtTab= simulateRecording(events=[1,2,3,4])
-mergeEventTableCodes!(evtTab, [1,2], 1)
-mergeEventTableCodes!(evtTab, [3,4], 3)
-```
+    ```julia
+    rec, evtTab= simulateRecording(events=[1,2,3,4])
+    mergeEventTableCodes!(evtTab, [1,2], 1)
+    mergeEventTableCodes!(evtTab, [3,4], 3)
+    ```
+
 """->
 function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String,Any}, trigList::AbstractVector{T}, newTrig::Integer)
     eventTable["code"][findin(eventTable["code"], trigList)] = newTrig
@@ -1033,11 +1082,12 @@ Find the exponent of the next power of 2 closest to `x`.
 
 #### Examples
 
-```julia
-nextPowTwo(6)
-nextPowTwo(511)
-isequal(2^(nextPowTwo(6)), 2^3)
-```
+    ```julia
+    nextPowTwo(6)
+    nextPowTwo(511)
+    isequal(2^(nextPowTwo(6)), 2^3)
+    ```
+
 """->
 function nextPowTwo(x::Real)
     out = round(Int, ceil(log2(x)))
@@ -1047,23 +1097,23 @@ end
 @doc doc"""
 Remove epochs from a segmented recording.
     
-#### Parameters
+#### Arguments
 
 * `rec::Dict{String,Array{Real,3}}`: The segmented recording
 * `toRemove::Dict{String,Array{P,1}}`: List of epochs to remove for each condition
 
 #### Examples
 
-```julia
-epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
-rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
-segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
-segsToReject = Dict{String,Array{Int,1}}()
-segsToReject["1"] = [3,5]
-segsToReject["2"] = [1,2]
-#toRemove = @compat Dict("1" => [3,5], "2" => [2])
-removeEpochs!(segs, segsToReject)
-```
+    ```julia
+    epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+    rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+    segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+    segsToReject = Dict{String,Array{Int,1}}()
+    segsToReject["1"] = [3,5]
+    segsToReject["2"] = [1,2]
+    #toRemove = @compat Dict("1" => [3,5], "2" => [2])
+    removeEpochs!(segs, segsToReject)
+    ```
 
 """->
 function removeEpochs!{T<:Real, P<:Integer}(rec::Dict{String,Array{T,3}}, toRemove::Dict{String,Array{P,1}})
@@ -1134,20 +1184,20 @@ end
 @doc doc"""
 Rereference channels in a continuous recording.
 
-#### Parameters
+##### Arguments
 
 * `rec::AbstractMatrix{Real}`: EEG recording.
 * `refChan::Integer`: The reference channel number.
 * `channels::Union(P, AbstractVector{P})`: The channel(s) to be rereferenced.
         
-#### Examples
+##### Examples
 
-```julia
-rec, evtTab = simulateRecording(nChans=4)
-rerefCnt!(rec, 4, channels=[1, 2, 3])
-```
+    ```julia
+    rec, evtTab = simulateRecording(nChans=4)
+    rerefCnt!(rec, 4, channels=[1, 2, 3])
+    ```
 """->
-function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer; channels::Union(P, AbstractVector{P})=[1:size(rec, 1)])
+function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer; channels::Union(P, AbstractVector{P})=collect(1:size(rec, 1)))
 
     for i=1:length(channels)
         if channels[i] != refChan
@@ -1166,7 +1216,7 @@ end
 @doc doc"""
 Segment a continuous EEG recording into discrete event-related epochs.
     
-#### Parameters
+##### Arguments
 
 * `rec::AbstractMatrix{T<:Real}`: The nChannelsXnSamples array with the EEG data.
 * `eventTable`: dictionary with the following keys
@@ -1179,7 +1229,7 @@ Segment a continuous EEG recording into discrete event-related epochs.
         If no list is given epochs will be extracted for all the trigger
         codes present in the event table.
 
-#### Returns
+##### Returns
 
 * `segs::Dict{String,Array{T,3}}`: The segmented recording.
         The dictionary has a key for each condition.
@@ -1187,13 +1237,13 @@ Segment a continuous EEG recording into discrete event-related epochs.
         nChannels x nSamples x nSegments
 * `nSegs::Dict{String,Int64}`: The number of segments for each condition.
         
-#### Examples
+##### Examples
 
-```julia
-epochDur=0.5; preDur=0.2; events=[1,2]; sampRate=256;
-rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events, sampRate=sampRate)
-segs, nSegs = segment(rec, evtTab, -preDur, epochDur, sampRate, eventsList=[1, 2], eventsLabelsList=["cnd1", "cnd2"])
-```
+    ```julia
+    epochDur=0.5; preDur=0.2; events=[1,2]; sampRate=256;
+    rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events, sampRate=sampRate)
+    segs, nSegs = segment(rec, evtTab, -preDur, epochDur, sampRate, eventsList=[1, 2], eventsLabelsList=["cnd1", "cnd2"])
+    ```
 """->
 function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTable::Dict{String, Any},
                                                  epochStart::Real, epochEnd::Real, sampRate::Integer;
@@ -1243,7 +1293,7 @@ function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTa
 Generate a simulated EEG recordings. Not physiologically plausible.
 Mainly useful for testing purposes.
 
-##### Parameters
+##### Arguments
 
 * `nChans`: Number of channels.
 * `dur`: duration of the recordings, in seconds.
