@@ -8,11 +8,13 @@ meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!,
 segment, simulateRecording
 
-using Compat, DataFrames, Distributions, DSP, PyCall, Docile
+using Compat, DataFrames, Distributions, DSP, PyCall
+VERSION < v"0.4-" && using Docile
 
 #pyinitialize("python3")
 
 @pyimport scipy.signal as scisig
+
 @doc doc"""
 Perform a weighted average of a list of averages. The weight of
 each average in the list is determined by the number of segments
@@ -46,8 +48,8 @@ aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
 """->
 function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}})
     eventList = collect(keys(aveList[1]))
-    weightedAve = (String => Array{eltype(aveList[1][eventList[1]]),2})[]
-    nSegsSum = (String => Int)[]
+    weightedAve = Dict{String,Array{eltype(aveList[1][eventList[1]]),2}}() #(String => Array{eltype(aveList[1][eventList[1]]),2})[]
+    nSegsSum = Dict{String,Int}()#(String => Int)[]
     for i=1:length(eventList)
         event = eventList[i]
         nSegsSum[event] = 0
@@ -94,8 +96,8 @@ function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
 
     
     eventList = collect(keys(rec))
-    ave = (String => Array{eltype(rec[eventList[1]]),2})[]
-    nSegs = (String => Int)[]
+    ave = Dict{String,Array{eltype(rec[eventList[1]]),2}}()#(String => Array{eltype(rec[eventList[1]]),2})[]
+    nSegs = Dict{String,Int}()#(String => Int)[]
     for i=1:length(eventList)
         nSegs[eventList[i]] = size(rec[eventList[i]])[3]
         ave[eventList[i]] = mean(rec[eventList[i]], 3)[:,:,1]
@@ -133,8 +135,8 @@ baselineCorrect!(segs, -0.15, preDur, sampRate)
 """->
 function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
     eventList = collect(keys(rec))
-    epochStartSample = int(round(preDur*sampRate))
-    baselineStartSample = int((epochStartSample+1) - abs(round(baselineStart*sampRate)))
+    epochStartSample = round(Int, preDur*sampRate)
+    baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
     
     for i=1:length(eventList) #for each event
         for j=1:size(rec[eventList[i]])[3] #for each epoch
@@ -189,11 +191,13 @@ function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union
     end
     if axis == 1
         for i=1:length(toRemove)
-            x = x[[setdiff(1:size(x, 1), toRemove[i]-i+1)],:]
+            #x = x[[setdiff(1:size(x, 1), toRemove[i]-i+1)],:]
+            x = x[collect(setdiff(1:size(x, 1), toRemove[i]-i+1)),:]
         end
     elseif axis == 2
         for i=1:length(toRemove)
-            x = x[:, [setdiff(1:size(x, 2), toRemove[i]-i+1)]]
+            #x = x[:, [setdiff(1:size(x, 2), toRemove[i]-i+1)]]
+            x = x[:, collect(setdiff(1:size(x, 2), toRemove[i]-i+1))]
         end
     end
     return(x)
@@ -215,7 +219,7 @@ Delete a slice from a 3-dimensional array.
 #### Examples
 
 ```julia
-    x = reshape([1:27], 3,3,3)
+    x = reshape(collect(1:27), 3,3,3)
     deleteSlice3D(x, 2, 1)
     deleteSlice3D(x, [2,3], 3)
     isequal(deleteSlice3D(x, [2,3], 3), x[:,:, [1]])
@@ -232,15 +236,15 @@ function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union(P, Abs
     end
     if axis == 1
         for i=1:length(toRemove)
-            x = x[[setdiff(1:size(x, 1), toRemove[i]-i+1)],:,:]
+            x = x[collect(setdiff(1:size(x, 1), toRemove[i]-i+1)),:,:]
         end
     elseif axis == 2
         for i=1:length(toRemove)
-            x = x[:, [setdiff(1:size(x, 2), toRemove[i]-i+1)],:]
+            x = x[:, collect(setdiff(1:size(x, 2), toRemove[i]-i+1)),:]
         end
     elseif axis == 3
         for i=1:length(toRemove)
-            x = x[:, :, [setdiff(1:size(x, 3), toRemove[i]-i+1)]]
+            x = x[:, :, collect(setdiff(1:size(x, 3), toRemove[i]-i+1))]
         end
     end
     
@@ -443,7 +447,7 @@ value, its length must match the number of channels to check.
 
 """ ->
 function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T, 3}}, thresh::Union(P, AbstractVector{P}),
-                                                          channels::Union(Q, AbstractVector{Q})=[1:size(rec[collect(keys(rec))[1]], 1)])
+                                                          channels::Union(Q, AbstractVector{Q})=collect(1:size(rec[collect(keys(rec))[1]], 1)))
 
     eventList = collect(keys(rec))
     ## if chans != nothing
@@ -466,7 +470,7 @@ function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Arra
         end
     end
    
-    segsToReject = (String => Array{Int,1})[]
+    segsToReject = Dict{String,Array{Int,1}}()#(String => Array{Int,1})[]
     for i=1:length(eventList)
         segsToReject[eventList[i]] = []
         for j=1:size(rec[eventList[i]])[3]
@@ -534,8 +538,8 @@ function findExtremum{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix{T})
         wave = vec(wave)
     end
     
-    searchStartPnt = int(round((searchStart - epochStart)*sampRate))
-    searchStopPnt = int(round((searchStop - epochStart)*sampRate))
+    searchStartPnt = round(Int, (searchStart - epochStart)*sampRate)
+    searchStopPnt = round(Int, (searchStop - epochStart)*sampRate)
     searchWin = wave[searchStartPnt:searchStopPnt]
     if extremumSign == "positive"
         extremumPntRel = find(searchWin .== maximum(searchWin))
@@ -582,7 +586,7 @@ function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampR
 ## acfArray[1:n] = sig
 ## out = zeros(n)
 
-## maxLagPnt = int(round(maxLag*sampRate))
+## maxLagPnt = round(Int, maxLag*sampRate)
 ## if maxLagPnt > n
 ## maxLagPnt = n
 ## end
@@ -609,7 +613,7 @@ function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampR
     w = window(n)
     sig = sig.*w
     
-    maxLagPnt = int(round(maxLag*sampRate))
+    maxLagPnt = round(Int, maxLag*sampRate)
     if maxLagPnt > n
         maxLagPnt = n
     end
@@ -939,8 +943,8 @@ function meanERPAmplitude{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix
         error("If `centerType` is `time` you need to specify `epochStart`") #centerPnt = (center-epochStart)*sampRate
     end
 
-    startPnt = centerPnt - int(round(winLength/2*sampRate))
-    stopPnt = centerPnt + int(round(winLength/2*sampRate))
+    startPnt = centerPnt - round(Int, winLength/2*sampRate)
+    stopPnt = centerPnt + round(Int, winLength/2*sampRate)
 
     meanAmp = mean(wave[startPnt:stopPnt])
     return meanAmp
@@ -963,8 +967,8 @@ function meanERPAmplitude{T<:Real}(wave::Union(AbstractVector{T}, AbstractMatrix
         centerPnt = (center-epochStart)*sampRate
     end
 
-    startPnt = centerPnt - int(round(winLength/2*sampRate))
-    stopPnt = centerPnt + int(round(winLength/2*sampRate))
+    startPnt = centerPnt - round(Int, winLength/2*sampRate)
+    stopPnt = centerPnt + round(Int, winLength/2*sampRate)
 
     meanAmp = mean(wave[startPnt:stopPnt])
     return meanAmp
@@ -1009,7 +1013,7 @@ isequal(2^(nextPowTwo(6)), 2^3)
 ```
 """->
 function nextPowTwo(x::Real)
-    out = int(ceil(log2(x)))
+    out = round(Int, ceil(log2(x)))
     return out
 end
 
@@ -1027,7 +1031,7 @@ Remove epochs from a segmented recording.
 epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
 rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
 segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
-segsToReject = (String => Array{Int,1})[]
+segsToReject = Dict{String,Array{Int,1}}()
 segsToReject["1"] = [3,5]
 segsToReject["2"] = [1,2]
 #toRemove = @compat Dict("1" => [3,5], "2" => [2])
@@ -1090,7 +1094,7 @@ function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array
     eventTable["dur"] = recTrigsDur
     eventTable["idx"] = recTrigsStart
 
-    resInfo = (String => Any)[]
+    resInfo = Dict{String,Any}() #(String => Any)[]
     resInfo["match"] = match_found
     resInfo["lenSent"] = length(sentTrigs)
     resInfo["lenFound"] = length(recTrigs)
@@ -1172,11 +1176,11 @@ function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTa
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
 
-    epochStartSample = int(round(epochStart*sampRate))
-    epochEndSample = int(round(epochEnd*sampRate)) - 1
+    epochStartSample = round(Int, epochStart*sampRate)
+    epochEndSample = round(Int, epochEnd*sampRate) - 1
 
     nSamples = epochEndSample - epochStartSample + 1
-    segs = (String => Array{eltype(rec),3})[]
+    segs = Dict{String,Array{eltype(rec),3}}() #(String => Array{eltype(rec),3})[]
     for i=1:length(eventsList)
         idx = trigs_pos[trigs .== eventsList[i]]
         
@@ -1199,7 +1203,7 @@ function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T}, eventTa
             end
         end
     end
-    nSegs = (String => Int)[]
+    nSegs = Dict{String,Int}() #(String => Int)[]
     for i=1:length(eventsList) #count
         nSegs[eventsLabelsList[i]] = size(segs[eventsLabelsList[i]])[3]
     end
@@ -1248,7 +1252,7 @@ function simulateRecording(;nChans::Integer=16, dur::Real=120, sampRate::Real=25
     end
  
     rec = rand(nChans, sampRate*dur)*(maxVolt-minVolt)+minVolt
-    startPoints = [ceil(Int, preDur*sampRate):(ceil(Int, preDur*sampRate)+ceil(Int, epochDur*sampRate)):(size(rec)[2]-round(Int, sampRate*1))]
+    startPoints = collect(ceil(Int, preDur*sampRate):(ceil(Int, preDur*sampRate)+ceil(Int, epochDur*sampRate)):(size(rec)[2]-round(Int, sampRate*1)))
     #nEvents = round(Int, dur/(epochDur+preDur)) - 3
     #nCodes = length(events)
     #nEventsPerCode = floor(Int, nEvents/nCodes)
