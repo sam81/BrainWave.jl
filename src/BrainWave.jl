@@ -1,12 +1,14 @@
 module BrainWave
 
-export averageAverages, averageEpochs, baselineCorrect!, chainSegments,
+export averageAverages, averageEpochs, baselineCorrect!, 
 deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, #_centered,
-fftconvolve, findArtefactThresh, findExtremum, getACF, getAutocorrelogram, getFRatios,
-getNoiseSidebands, getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
+fftconvolve, findArtefactThresh, findExtremum, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2, 
+getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
 meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!,
 segment, simulateRecording
+
+#getNoiseSidebands, #chainSegments,#getFRatios,
 
 using Compat, DataFrames, Distributions, DSP, PyCall
 VERSION < v"0.4-" && using Docile
@@ -663,6 +665,41 @@ function getACF{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampR
     
 end
 
+function getACF2{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+
+    if ndims(sig) > 1
+        if in(1, size(sig)) == false
+            error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
+        end
+        sig = vec(sig)
+    end
+
+    n = length(sig)
+    w = window(n)
+    sig = sig.*w
+    
+    acfArray = zeros(n*2)
+    acfArray[1:n] = sig
+    out = zeros(n)
+
+    maxLagPnt = round(Int, maxLag*sampRate)
+    if maxLagPnt > n
+        maxLagPnt = n
+    end
+
+    for i = 1:maxLagPnt
+        out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
+    end
+    
+    out = out[1:maxLagPnt]
+    lags = [1:maxLagPnt]./sampRate
+    
+    if normalize == true
+        out = out ./ maximum(out)
+    end
+    return out, lags
+end
+
 @doc doc"""
 Compute the autocorrelogram of a 1-dimensional array.
     
@@ -693,10 +730,9 @@ Compute the autocorrelogram of a 1-dimensional array.
 """->
 function getAutocorrelogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
     winLengthPnt = floor(Int, winLength * sampRate)
-    step = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
-    ind = collect(1:step:length(sig) - winLengthPnt)
+    stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
+    ind = collect(1:stepSize:length(sig) - winLengthPnt)
     n = length(ind)
-
     acf, lags = getACF(sig[ind[1]:ind[1]+winLengthPnt], sampRate, maxLag, normalize=normalize, window=window)
 
     acfMatrix = zeros(length(acf), n)
@@ -706,7 +742,29 @@ function getAutocorrelogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatri
         acfMatrix[:,i] = acf
     end
 
-    #timeInd = arange(0, len(sig), step)
+    #timeInd = arange(0, len(sig), stepSize)
+    #timeArray = 1./sampRate * (timeInd)
+    timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    return acfMatrix, lags, timeArray3
+end
+
+function getAutocorrelogram2{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+    winLengthPnt = floor(Int, winLength * sampRate)
+    stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
+    ind = collect(1:stepSize:length(sig) - winLengthPnt)
+    indStop = ind + winLengthPnt
+    #indStop[end] = length(sig)
+    n = length(ind)
+    acf, lags = getACF2(sig[ind[1]:indStop[1]], sampRate, maxLag, normalize=normalize, window=window)
+    nACF = length(acf)
+    acfMatrix = zeros(length(acf), n)
+    acfMatrix[:,1] = acf
+    for i=2:n
+        acf, lags = getACF2(sig[ind[i]:indStop[i]], sampRate, maxLag, normalize=normalize, window=window)
+        acfMatrix[:,i] = acf[1:nACF]
+    end
+
+    #timeInd = arange(0, len(sig), stepSize)
     #timeArray = 1./sampRate * (timeInd)
     timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
     return acfMatrix, lags, timeArray3
@@ -818,8 +876,8 @@ If the signal length is not a multiple of the window length it is trucated.
 function getSpectrogram{T<:Real}(sig::Union(AbstractVector{T}, AbstractMatrix{T}), sampRate::Real, winLength::Real, overlap::Real; window::Function=rect, powerOfTwo::Bool=false)
     winLengthPnt = floor(Int, winLength * sampRate)
     
-    step = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
-    ind = collect(1:step:length(sig) - winLengthPnt)
+    stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
+    ind = collect(1:stepSize:length(sig) - winLengthPnt)
     n = length(ind)
     p, freqArray = getSpectrum(sig[ind[1]:ind[1]+winLengthPnt], sampRate, window=window, powerOfTwo=powerOfTwo)
 
