@@ -23,6 +23,6 @@ end
 
 for fName in fToProcess
     fNameTest = string("test_", fName)
-    reload(fNameTest)
+    include(fNameTest)
 end
 

@@ -12,7 +12,7 @@ using BrainWave, Compat
 
 
 sampRate = 256
-rec, evtTab = simulateRecording(sampRate=256)
+rec, evtTab = simulateRecording(sampRate=256, minVolt=-85, maxVolt=85)
 
 filterContinuous!(rec, sampRate, "bandpass", 512, [1, 30], transitionWidth=0.2)
 
