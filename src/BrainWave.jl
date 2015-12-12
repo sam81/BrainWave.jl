@@ -94,17 +94,48 @@ Average the epochs of a segmented recording.
 ```
 
 """->
+
+function averageEpochs{T<:Real}(rec::Array{T,3})
+
+    nSegs = size(rec)[3]
+    ave = squeeze(mean(rec, 3), 3)
+
+    return ave, nSegs
+end
+
 function averageEpochs{T<:Real}(rec::Dict{ASCIIString,Array{T,3}})
 
     
     eventList = collect(keys(rec))
-    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()#(ASCIIString => Array{eltype(rec[eventList[1]]),2})[]
-    nSegs = Dict{ASCIIString,Int}()#(ASCIIString => Int)[]
+    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()
+    nSegs = Dict{ASCIIString,Int}()
     for i=1:length(eventList)
-        nSegs[eventList[i]] = size(rec[eventList[i]])[3]
-        ave[eventList[i]] = mean(rec[eventList[i]], 3)[:,:,1]
+        #nSegs[eventList[i]] = size(rec[eventList[i]])[3]
+        #ave[eventList[i]] = mean(rec[eventList[i]], 3)[:,:,1]
+        ave[eventList[i]], nSegs[eventList[i]] = averageEpochs(rec[eventList[i]])
     end
     return ave, nSegs
+end
+
+@doc doc"""
+"""->
+function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}; noiseEstimate::ASCIIString="global")
+    eventList = collect(keys(rec))
+    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()
+    for i=1:length(eventList)
+        ave[eventList[i]] = iterativeWeightedAverage(rec[eventList[i]], noiseEstimate=noiseEstimate)
+    end
+    return ave
+end
+
+
+function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::ASCIIString="global")
+    eventList = collect(keys(rec))
+    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()
+    for i=1:length(eventList)
+        ave[eventList[i]] = iterativeWeightedAverage(rec[eventList[i]], noiseWinStart, noiseWinStop, preDur, sampRate, noiseEstimate=noiseEstimate)
+    end
+    return ave
 end
 
 @doc doc"""
@@ -144,6 +175,24 @@ function baselineCorrect!{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, baselineSt
         for j=1:size(rec[eventList[i]])[3] #for each epoch
             for k=1: size(rec[eventList[i]])[1] #for each electrode
                 thisBaseline = mean(rec[eventList[i]][k,baselineStartSample:epochStartSample,j])
+                rec[eventList[i]][k,:,j] = rec[eventList[i]][k,:,j] .- thisBaseline
+            end
+        end
+    end
+
+    
+end
+
+function baselineCorrect!{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, baselineStart::Real, baselineEnd::Real, preDur::Real, sampRate::Integer)
+    eventList = collect(keys(rec))
+    epochStartSample = round(Int, preDur*sampRate)
+    baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
+    baselineEndSample = round(Int, (epochStartSample+1) - abs(round(baselineEnd*sampRate)))
+    
+    for i=1:length(eventList) #for each event
+        for j=1:size(rec[eventList[i]])[3] #for each epoch
+            for k=1: size(rec[eventList[i]])[1] #for each electrode
+                thisBaseline = mean(rec[eventList[i]][k,baselineStartSample:baselineEndSample,j])
                 rec[eventList[i]][k,:,j] = rec[eventList[i]][k,:,j] .- thisBaseline
             end
         end
@@ -278,6 +327,35 @@ function detrendEEG!{T<:Real}(rec::AbstractMatrix{T})
 end
 
 @doc doc"""
+"""->
+function epochVariance{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+    eventList = collect(keys(rec))
+    epochVar = Dict{ASCIIString, Real}()
+    for i=1:length(eventList)
+        epochVar[eventList[i]] = epochVariance(rec[eventList[i]], winStart, winStop, preDur, sampRate)
+    end
+    return epochVar
+end
+
+function epochVariance{T<:Real}(sweeps::Array{T,3}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+    nSweeps = size(sweeps)[3]
+    nSamp = size(sweeps)[2]
+    nChans = size(sweeps)[1]
+
+    winStartSample = round(Int, (winStart+preDur)*sampRate)+1
+    winStopSample = round(Int, (winStop+preDur)*sampRate)
+    if winStartSample < 1
+        winStartSample = 1
+    end
+    if winStopSample > nSamp
+        winStopSample = nSamp
+    end
+    ## println(winStartSample)
+    ## println(winStopSample)
+    epochVar = mean(var(sweeps[:,winStartSample:winStopSample,:], 3))
+end
+
+@doc doc"""
 Filter a continuous EEG recording.
     
 ##### Arguments
@@ -306,8 +384,13 @@ Filter a continuous EEG recording.
 ```
 
 """->
-function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T}, sampRate::Integer, filterType::ASCIIString, nTaps::Integer, cutoffs::Union{P, AbstractVector{P}};
-                                             channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)), transitionWidth::Real=0.2)
+function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
+                                                         sampRate::Integer,
+                                                         filterType::ASCIIString,
+                                                         nTaps::Integer,
+                                                         cutoffs::Union{P, AbstractVector{P}};
+                                                         channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+                                                         transitionWidth::Real=0.2)
     if filterType == "lowpass"
         f3 = cutoffs[1]
         f4 = cutoffs[1] * (1+transitionWidth)
@@ -581,6 +664,150 @@ function findExtremum{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}
     
     return extremumPnt, extremumTime
 end
+
+@doc doc"""
+
+##### References
+
+* Elberling, C., & Don, M. (1984). Quality estimation of averaged auditory brainstem responses. Scandinavian Audiology, 13(3), 187–197.
+* Ozdamar, O., & Delgado, R. E. (1996). Measurement of signal and noise characteristics in ongoing auditory brainstem response averaging. Annals of Biomedical Engineering, 24(6), 702–715.
+"""->
+function FMP{T<:Real}(segs::Array{T,3}; at=-1)
+    if at == -1
+        at = size(segs)[3]
+    end
+    nChans = size(segs)[1]
+    nSamples = size(segs)[2]
+    #nSweeps = size(segs)[3]
+    n = length(at)
+    FMPNum=zeros(nChans, n)
+    FMPDen=zeros(nChans, n)
+
+    for i=1:n
+        thisIdx = at[i]
+        FMPNum[:,i] = var(squeeze(mean(segs[:,:,1:thisIdx],3),3),2) #Variance across time of the averaged sweeps. The variance is calculated for each channel and.
+        tmpFMPDen = zeros(nChans, nSamples)
+        for j=1:nSamples
+            tmpFMPDen[:,j] = squeeze(var(segs[:,j,1:thisIdx], 3), (2,3))/thisIdx #Variance across sweeps for each sample. The variance is calculated for each channel.
+        end
+        FMPDen[:,i] = mean(tmpFMPDen,2) #Average the variance across samples.
+    end
+    FMPVals = FMPNum./FMPDen
+    return FMPVals, FMPNum, FMPDen
+
+end
+
+function FMP{T<:Real}(segs::Dict{ASCIIString,Array{T,3}}; at=-1)
+    
+    eventList = collect(keys(segs))
+    FMPVals = Dict{ASCIIString,Array{Float64,2}}()
+    FMPNum = Dict{ASCIIString,Array{Float64,2}}()
+    FMPDen = Dict{ASCIIString,Array{Float64,2}}()
+    
+    for i=1:length(eventList)
+        FMPVals[eventList[i]], FMPNum[eventList[i]], FMPDen[eventList[i]] = FMP(segs[eventList[i]], at=at)
+    end
+
+    return FMPVals, FMPNum, FMPDen
+end
+
+
+@doc doc"""
+"""->
+function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate::ASCIIString="global")
+    if at == -1
+        at = size(sweeps)[3]
+    end
+    n=length(at)
+    nChans = size(sweeps)[1]
+    nSamp = size(sweeps)[2]
+    nSweeps = size(sweeps)[3]
+
+    weighted_ave = zeros(nChans, nSamp)
+    weighted_ave_num = zeros(nChans, nSamp)
+    weighted_ave_den = zeros(nChans, nSamp)
+
+    FMPNum=zeros(nChans, n)
+    FMPDen=zeros(nChans, n)
+
+    if noiseEstimate == "global"
+        sweepWeights = zeros(nSweeps)
+        for i=1:nSweeps
+            if i==1
+                est_sig = zeros(nChans, nSamp)
+            else
+                est_sig = weighted_ave
+            end
+            noisePow = mean((sweeps[:,:,i] .- est_sig).^2)
+            weighted_ave_num = weighted_ave_num .+ sweeps[:,:,i].* (1/noisePow)
+
+            sweepWeights[i] = 1./noisePow
+            weighted_ave_den = weighted_ave_den .+ (1/noisePow)
+            weighted_ave = weighted_ave_num ./ weighted_ave_den
+
+            if in(i, at)
+                thisIdx = find(at.==i)[1]
+                FMPNum[:,thisIdx] = var(weighted_ave,2) #variance of the averaged sweeps
+                resNoise = zeros(nChans, nSamp) #residual noise
+                for ch=1:nChans
+                    for s=1:nSamp
+                        resNoise[ch,s] = sum((squeeze(sweeps[ch,s,1:i].-weighted_ave[ch,s], (1,2)).^2).*sweepWeights[1:i]) ./ ((i-1)*sum(sweepWeights[1:i]))
+                    end
+                end
+                FMPDen[:,thisIdx] = mean(resNoise, 2)
+            end
+
+        end
+
+    elseif noiseEstimate == "byChannel"
+        sweepWeights = zeros(nChans, nSweeps)
+        for i=1:nSweeps
+            if i==1
+                est_sig = zeros(nChans, nSamp)
+            else
+                est_sig = weighted_ave
+            end
+            for c=1:nChans
+                noisePow = mean((sweeps[c,:,i] .- est_sig[c,:]).^2)
+                sweepWeights[c, i] = 1./noisePow
+                weighted_ave_num[c,:] = weighted_ave_num[c,:] .+ sweeps[c,:,i].* (1/noisePow)
+                weighted_ave_den[c,:] = weighted_ave_den[c,:] .+ (1/noisePow)
+            end
+            weighted_ave = weighted_ave_num ./ weighted_ave_den
+
+            if in(i, at)
+                thisIdx = find(at.==i)[1]
+                FMPNum[:,thisIdx] = var(weighted_ave,2) #variance of the averaged sweeps
+                resNoise = zeros(nChans, nSamp) #residual noise
+                for c=1:nChans
+                    for s=1:nSamp
+                        resNoise[c,s] = sum((squeeze(sweeps[c,s,1:i].-weighted_ave[c,s], (1,2)).^2).*squeeze(sweepWeights[c,1:i],1)) ./ ((i-1)*sum(sweepWeights[c,1:i]))
+                    end
+                end
+                FMPDen[:,thisIdx] = mean(resNoise, 2)
+            end
+            
+        end
+    end
+    FMPVals = FMPNum./FMPDen
+    return FMPVals, FMPNum, FMPDen
+end
+
+
+function FMPIterativeWeighted{T<:Real}(segs::Dict{ASCIIString,Array{T,3}}; at=-1, noiseEstimate::ASCIIString="global")
+    
+    eventList = collect(keys(segs))
+    FMPVals = Dict{ASCIIString,Array{Float64,2}}()
+    FMPNum = Dict{ASCIIString,Array{Float64,2}}()
+    FMPDen = Dict{ASCIIString,Array{Float64,2}}()
+
+    for i=1:length(eventList)
+        FMPVals[eventList[i]], FMPNum[eventList[i]], FMPDen[eventList[i]] = FMPIterativeWeighted(segs[eventList[i]], at=at, noiseEstimate=noiseEstimate)
+    end
+    
+    return FMPVals, FMPNum, FMPDen
+end
+
 
 
 @doc doc"""
@@ -1009,6 +1236,141 @@ function getPhaseSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{
 end
 
 @doc doc"""
+Compute an iterative weighted average from a matrix of segmented EEG recordings.
+
+##### Arguments
+
+* `sweeps`::Array{T,3}`: The matrix containing the segmented recording from which the
+average should be computed.
+* `noiseEstimate::ASCIIString`: if `global` the estimate of the noise used to weight individual
+segments is derived from all the channels. If `byChannel` an noise estimate is derived for each
+channel and segments are weighted differently for each channel depending on the channel noise
+estimate.
+* `noiseWinStart`::Real: Time in seconds at which the noise estimate should start relative to the start of the epoch.
+* `noiseWinStop`::Real: Time in seconds at which the noise estimate should stop relative to the start of the epoch.
+* `preDur::Real`: Duration of recording before the experimental event, in seconds.
+* `sampRate::Real`: The samplig rate of the EEG recording.
+
+##### Returns
+
+* `weighted_ave`: The weighted average of the segments.
+
+##### Examples
+
+nChans = 3; nSamp=1000; nSweeps=500
+sweeps = rand(nChans, nSamp, nSweeps)
+iterativeWeightedAverage(sweeps, noiseEstimate="global")
+iterativeWeightedAverage(sweeps, noiseEstimate="byChannel")
+iterativeWeightedAverage(sweeps, 0, 0.2, 0.1, 1000, noiseEstimate="global")
+
+##### References
+
+* Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
+
+"""->
+function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}; noiseEstimate::ASCIIString="global")
+
+    if in(noiseEstimate, ["global", "byChannel"]) == false
+        error("`noiseEstimate` must be either `global`, or `byChannel`")
+    end
+    
+    nSweeps = size(sweeps)[3]
+    nSamp = size(sweeps)[2]
+    nChans = size(sweeps)[1]
+
+    weighted_ave = zeros(nChans, nSamp)
+    weighted_ave_num = zeros(nChans, nSamp)
+    weighted_ave_den = zeros(nChans, nSamp)
+
+    if noiseEstimate == "global"
+        for i=1:nSweeps
+            if i==1
+                est_sig = zeros(nChans, nSamp)
+            else
+                est_sig = weighted_ave
+            end
+            noisePow = mean((sweeps[:,:,i] .- est_sig).^2)
+            weighted_ave_num = weighted_ave_num .+ sweeps[:,:,i].* (1/noisePow)
+            weighted_ave_den = weighted_ave_den .+ (1/noisePow)
+            weighted_ave = weighted_ave_num ./ weighted_ave_den
+        end
+    elseif noiseEstimate == "byChannel"
+        for i=1:nSweeps
+            if i==1
+                est_sig = zeros(nChans, nSamp)
+            else
+                est_sig = weighted_ave
+            end
+            for c=1:nChans
+                noisePow = mean((sweeps[c,:,i] .- est_sig[c,:]).^2)
+                weighted_ave_num[c,:] = weighted_ave_num[c,:] .+ sweeps[c,:,i].* (1/noisePow)
+                weighted_ave_den[c,:] = weighted_ave_den[c,:] .+ (1/noisePow)
+            end
+            weighted_ave = weighted_ave_num ./ weighted_ave_den
+        end
+    end
+
+    return weighted_ave
+end
+
+function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::ASCIIString="global")
+    #noiseWinStart - time in seconds at which the noise estimate should start relative to the start of the epoch
+    #noiseWinStop - time in seconds at which the noise estimate should stop relative to the start of the epoch
+
+    if in(noiseEstimate, ["global", "byChannel"]) == false
+        error("`noiseEstimate` must be either `global`, or `byChannel`")
+    end
+    
+    nSweeps = size(sweeps)[3]
+    nSamp = size(sweeps)[2]
+    nChans = size(sweeps)[1]
+
+    noiseWinStartSample = round(Int, (noiseWinStart+preDur)*sampRate)+1
+    noiseWinStopSample = round(Int, (noiseWinStop+preDur)*sampRate)
+    if noiseWinStartSample < 1
+        noiseWinStartSample = 1
+    end
+    if noiseWinStopSample > nSamp
+        noiseWinStopSample = nSamp
+    end
+
+
+    weighted_ave = zeros(nChans, nSamp)
+    weighted_ave_num = zeros(nChans, nSamp)
+    weighted_ave_den = zeros(nChans, nSamp)
+
+    if noiseEstimate == "global"
+        for i=1:nSweeps
+            if i==1
+                est_sig = zeros(nChans, nSamp)
+            else
+                est_sig = weighted_ave
+            end
+            noisePow = mean((sweeps[:,noiseWinStartSample:noiseWinStopSample,i] .- est_sig[:,noiseWinStartSample:noiseWinStopSample]).^2)
+            weighted_ave_num = weighted_ave_num .+ sweeps[:,:,i].* (1/noisePow)
+            weighted_ave_den = weighted_ave_den .+ (1/noisePow)
+            weighted_ave = weighted_ave_num ./ weighted_ave_den
+        end
+    elseif noiseEstimate == "byChannel"
+        for i=1:nSweeps
+            if i==1
+                est_sig = zeros(nChans, nSamp)
+            else
+                est_sig = weighted_ave
+            end
+            for c=1:nChans
+                noisePow = mean((sweeps[c,noiseWinStartSample:noiseWinStopSample,i] .- est_sig[c,noiseWinStartSample:noiseWinStopSample]).^2)
+                weighted_ave_num[c,:] = weighted_ave_num[c,:] .+ sweeps[c,:,i].* (1/noisePow)
+                weighted_ave_den[c,:] = weighted_ave_den[c,:] .+ (1/noisePow)
+            end
+            weighted_ave = weighted_ave_num ./ weighted_ave_den
+        end
+    end
+
+    return weighted_ave
+end
+
+@doc doc"""
 Compute the mean amplitude of an ERP waveform in a time window centered on a given point.
 
 #### Arguments:
@@ -1293,6 +1655,31 @@ function removeSpuriousTriggers!(eventTable::Dict{ASCIIString, Any}, sentTrigs::
 
     return resInfo
 end
+
+
+@doc doc"""
+"""->
+function RMS{T<:Real}(ave::Array{T,2}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+    nSamp = size(ave)[2]
+    nChans = size(ave)[1]
+
+    winStartSample = round(Int, (winStart+preDur)*sampRate)+1
+    winStopSample = round(Int, (winStop+preDur)*sampRate)
+    if winStartSample < 1
+        winStartSample = 1
+    end
+    if winStopSample > nSamp
+        winStopSample = nSamp
+    end
+    ## println(winStartSample)
+    ## println(winStopSample)
+    RMSVal = zeros(nChans)
+    for n=1:nChans
+        RMSVal[n] = sqrt(mean(ave[n, winStartSample:winStopSample].^2))
+    end
+    return RMSVal
+end
+
 
 @doc doc"""
 Rereference channels in a continuous recording.
