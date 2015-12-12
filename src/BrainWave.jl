@@ -1,11 +1,12 @@
 module BrainWave
 
-export averageAverages, averageEpochs, baselineCorrect!, 
-deleteSlice2D, deleteSlice3D, detrendEEG!, filterContinuous!, #_centered,
-fftconvolve, findArtefactThresh, findExtremum, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2, 
+export averageAverages, averageEpochs, averageEpochsIterativeWeighted, baselineCorrect!, 
+deleteSlice2D, deleteSlice3D, detrendEEG!, epochVariance, filterContinuous!, #_centered,
+fftconvolve, findArtefactThresh, findExtremum, FMP, FMPIterativeWeighted, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2, 
 getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
+iterativeWeightedAverage, 
 meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
-removeEpochs!, removeSpuriousTriggers!, rerefCnt!,
+removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
 segment, simulateRecording
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
