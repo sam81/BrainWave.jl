@@ -2,23 +2,27 @@ module BrainWave
 
 export averageAverages, averageEpochs, averageEpochsIterativeWeighted, baselineCorrect!,
 deleteSlice2D, deleteSlice3D, detrendEEG!, epochVariance, filterContinuous!, #_centered,
-fftconvolve, findArtefactThresh, findExtremum, FMP, FMPIterativeWeighted, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2,
+fftconvolve, findArtefactThresh, findExtremum, findInflections, findABRPeaks, findPeaks, findTroughs, FMP, FMPIterativeWeighted, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2,
 getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
 iterativeWeightedAverage,
 meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
-segment, simulateRecording
+segment, simulateRecording,
+toRawEEG, RawEEG,
+input, plotRawEEG
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
 using Compat, DataFrames, Distributions, DSP, PyCall
+import Compat.String
+import PyPlot; const plt = PyPlot
 VERSION < v"0.4-" && using Docile
 
 #pyinitialize("python3")
 
 @pyimport scipy.signal as scisig
-
-
+include("findABRPeaks.jl")
+include("AbstractionLayer.jl")
 @doc doc"""
 Perform a weighted average of a list of averages. The weight of
 each average in the list is determined by the number of segments
@@ -432,8 +436,14 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
 
     for i=1:nChannels
         if in(i, channels) == true
-            rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
-            rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:], 2)),1), b, "same"), 1)
+            if VERSION < v"0.5-"
+                rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
+                rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:], 2)),1), b, "same"), 1)
+            else
+                rec[i,:] = fftconvolve(rec[i,:], b, "same")
+                rec[i,:] = flipdim(fftconvolve(flipdim(rec[i,:],1), b, "same"), 1)
+            end
+           
         end
     end
     return rec
@@ -487,6 +497,93 @@ function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R
         return _centered(convArray, abs(s1 - s2) + 1)
     end
 end
+
+function findPeaks{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
+    peakPnts = (Int)[]
+    crPnts = (Int)[]
+    
+    y = vec(y)
+    dy = diff(y)
+    ddy = diff(dy)
+    #    crPnts = find(dy[1:end-1].*dy[2:end] .<= 0) +1
+    sgnch = dy[1:end-1].*dy[2:end]
+    for i=1:length(sgnch)
+        if signbit(sgnch[i]) == true
+            push!(crPnts, i+1)
+        end
+    end
+
+    for n=1:length(crPnts)
+        if ddy[crPnts[n]-1] .< 0
+            push!(peakPnts, crPnts[n])
+        end     
+    end
+
+    peakTimes = zeros(length(peakPnts))
+    
+    for i=1:length(peakPnts)
+        peakTimes[i] = (peakPnts[i]-1)/sampRate
+    end
+    peakTimes = peakTimes+epochStart
+    
+    return peakPnts, peakTimes
+end
+
+
+function findTroughs{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
+    troughPnts = (Int)[]
+    crPnts = (Int)[]
+    
+    y = vec(y)
+    dy = diff(y)
+    ddy = diff(dy)
+    #crPnts = find(dy[1:end-1].*dy[2:end] .<= 0) +1
+    sgnch = dy[1:end-1].*dy[2:end]
+    for i=1:length(sgnch)
+        if signbit(sgnch[i]) == true
+            push!(crPnts, i+1)
+        end
+    end
+    for n=1:length(crPnts)
+        if ddy[crPnts[n]-1] .> 0
+            push!(troughPnts, crPnts[n])
+        end     
+    end
+
+    troughTimes = zeros(length(troughPnts))
+    
+    for i=1:length(troughPnts)
+        troughTimes[i] = (troughPnts[i]-1)/sampRate
+    end
+    troughTimes = troughTimes+epochStart
+
+    return troughPnts, troughTimes
+end
+
+
+function findInflections{T}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
+    inflPnts = (Int)[]
+    y = vec(y)
+    dy = diff(y)
+    ddy = diff(dy)
+    sgnch = ddy[1:end-1].*ddy[2:end]
+    for i=1:length(sgnch)
+        if signbit(sgnch[i]) == true
+            push!(inflPnts, i+2)
+        end
+    end
+
+    inflTimes = zeros(length(inflPnts))
+    
+    for i=1:length(inflPnts)
+        inflTimes[i] = (inflPnts[i]-1)/sampRate
+    end
+    inflTimes = inflTimes+epochStart
+    
+    return inflPnts, inflTimes
+
+end
+
 
 @doc doc"""
 
@@ -619,7 +716,7 @@ Find the time point at which a waveform reaches a maximum or a minimum.
     ## sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
 
     # contrived example
-    using Winston
+    #using Winston
     sampRate = 256
     dur = 0.6
     epochStart = -0.15
@@ -632,10 +729,10 @@ Find the time point at which a waveform reaches a maximum or a minimum.
     wave1 = sin(2*pi*freq*tArr+phase)
     wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
-    p = plot(tArr, wave1)
-    l1 = LineX(timePnt, color="red")
-    add(p, l1)
-    display(p)
+    #p = plot(tArr, wave1)
+    #l1 = LineX(timePnt, color="red")
+    #add(p, l1)
+    #display(p)
 ```
 
 """->
@@ -1407,7 +1504,7 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
     ## meanAmp =  meanERPAmplitude(wave, centerPointTm, "time", P2WinLength, sampRate)
 
     # contrived example
-    using Winston
+    #using Winston
     sampRate = 256
     dur = 0.6
     epochStart = -0.15
@@ -1420,10 +1517,10 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
     wave1 = sin(2*pi*freq*tArr+phase)
     wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
-    p = plot(tArr, wave1)
-    l1 = LineX(timePnt, color="red")
-    add(p, l1)
-    display(p)
+    #p = plot(tArr, wave1)
+    #l1 = LineX(timePnt, color="red")
+    #add(p, l1)
+    #display(p)
     meanAmp =  meanERPAmplitude(wave1, sampPnt, "point", 0.05, sampRate)
     ```
 
@@ -1855,5 +1952,140 @@ function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
     return rec, evtTab
 end
 
+"""
+`input(prompt::AbstractString="")`
+
+Read a string from STDIN. The trailing newline is stripped.
+
+The prompt string, if given, is printed to standard output without a
+trailing newline before reading input.
+"""
+function input(prompt::AbstractString="")
+    print(prompt)
+    return chomp(readline())
+end
+
+function plotRawEEG(EEG::RawEEG; winDur::Real=8, startTime::Real=0, uVRange::Real=200, startChan::Int=1, nChansToPlot::Int=-1,
+                    lineWidth::Real=0.5)
+    badSegs = plotRawEEG(EEG.data, EEG.sampRate, winDur=winDur, startTime=startTime, uVRange=uVRange, chanLabels=EEG.chanLabels)
+    return badSegs
+end
+
+function plotRawEEG{T<:Real}(dats::AbstractMatrix{T}, sampRate::Real;
+                             winDur::Real=8, startTime::Real=0, uVRange::Real=200,
+                             startChan::Int=1, nChansToPlot::Int=-1,
+                             chanLabels=["" for i=1:size(dats[1])],
+                             lineWidth::Real=0.5)
+    badSegmentStart = (Real)[]
+    badSegmentEnd = (Real)[]
+    function doPlot()
+        nChansToPlot=min(nChansToPlot, nChans)
+        if startChan+nChansToPlot-1 > nChans
+            startChan=nChans-(nChansToPlot-1)
+        end
+        startChan = min(max(1, startChan), nChans)
+        chansToPlot = flipdim(collect(startChan:startChan+nChansToPlot-1),1)
+        #chansToPlot = chansToPlot[chansToPlot .<= nChans]
+        nChansToPlot = length(chansToPlot)
+        println(chansToPlot)
+        plt.cla()
+        for i=1:nChansToPlot
+            yRaw = dats[chansToPlot[i], idxStart:idxEnd]'
+            y = yRaw-mean(yRaw)+uVRange*(i-1)
+            plt.plot(tArr[idxStart:idxEnd], y, linewidth=lineWidth)
+        end
+        plt.xlim([startTime, idxEnd/fs])
+        plt.gcf()[:gca]()[:get_xaxis]()[:get_major_formatter]()[:set_useOffset](false)
+        plt.xlabel("Time (s)")
+        plt.yticks(collect(0:uVRange:nChansToPlot*uVRange), chanLabels[chansToPlot])
+        plt.grid()
+        plt.draw()
+    end
+    nChans = size(dats)[1]
+    if nChansToPlot == -1
+        nChansToPlot = nChans
+    end
+    nChansToPlot=min(nChansToPlot, nChans)
+    nSamp = size(dats)[2]
+    tArr = collect(0:nSamp-1)/fs
+    nSampToShow = round(Int, winDur*fs)
+    idxStart = round(Int, startTime*fs)+1
+    idxEnd = idxStart+nSampToShow
+ 
+    doPlot()
+    
+    theEnd = false
+    println("Press:\n 'n' for next window \n 'p' for previous window \n 'x' to exit \n 'j' to jump to time \n 'w' to change window length \n 'r' to change aplitude range \n 'm' to mark bad segments")
+    while theEnd == false
+        inp = input()
+        if inp == "x"
+            theEnd = true
+        else
+            if in(inp, ["n", "\e[C"])
+                startTime = startTime+winDur
+            elseif inp == "nn"
+                startTime = startTime+winDur*2
+            elseif inp == "nn"
+                startTime = startTime+winDur*3
+            elseif in(inp, ["p", "\e[D"])
+                startTime = startTime-winDur
+            elseif inp == "pp"
+                startTime = startTime-winDur*2
+            elseif inp == "ppp"
+                startTime = startTime-winDur*3
+            elseif inp == "s"
+                ui = input("Input desired start channel:")
+                startChan = parse(Int, ui)
+            elseif inp == "c"
+                ui = input("Input desired number of channels to plot:")
+                nChansToPlot = parse(Int, ui)
+            elseif in(inp, ["o", "\e[A"])
+                startChan = startChan-1
+            elseif in(inp, ["k", "\e[B"])
+                startChan = startChan+1
+            elseif inp == "j"
+                ui = input("Input desired start time (s):")
+                startTime = parse(Float32, ui)
+            elseif inp == "w"
+                ui = input("Input desired window duration (s):")
+                winDur = parse(Float32, ui)
+                nSampToShow = round(Int, winDur*fs)
+            elseif inp == "r"
+                ui = input("Input desired range (uV):")
+                uVRange = parse(Float32, ui)
+            elseif inp == "l"
+                ui = input("Input desired line width:")
+                lineWidth = parse(Float32, ui)
+            elseif inp == "m"
+                ui = input("Bad segment start time (s):")
+                badStart = parse(Float32, ui)
+                ui = input("Bad segment end time (s):")
+                badEnd = parse(Float32, ui)
+                if badEnd <= badStart
+                    printl("Bad segment end time cannot be <= than bad segment start time")
+                else
+                    push!(badSegmentStart, badStart)
+                    push!(badSegmentEnd, badEnd)
+                end
+           end
+       end
+       idxStart = max(round(Int, startTime*fs)+1, 1)
+       idxEnd = idxStart+nSampToShow
+       if idxEnd > nSamp
+           idxEnd = nSamp
+           idxStart = idxEnd-nSampToShow
+           startTime = idxStart/fs
+       end
+       doPlot()
+          
+   end
+   badSegs = Dict{String, AbstractVector{Real}}()
+   badSegs["startTime"] = badSegmentStart
+   badSegs["endTime"] = badSegmentEnd
+   plt.close()
+
+   return badSegs
+end
+  
 
 end #Module

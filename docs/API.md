@@ -272,7 +272,7 @@ Find the time point at which a waveform reaches a maximum or a minimum.
     ## sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
 
     # contrived example
-    using Winston
+    #using Winston
     sampRate = 256
     dur = 0.6
     epochStart = -0.15
@@ -285,10 +285,10 @@ Find the time point at which a waveform reaches a maximum or a minimum.
     wave1 = sin(2*pi*freq*tArr+phase)
     wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
-    p = plot(tArr, wave1)
-    l1 = LineX(timePnt, color="red")
-    add(p, l1)
-    display(p)
+    #p = plot(tArr, wave1)
+    #l1 = LineX(timePnt, color="red")
+    #add(p, l1)
+    #display(p)
 ```
 
 
@@ -544,7 +544,7 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
     ## meanAmp =  meanERPAmplitude(wave, centerPointTm, "time", P2WinLength, sampRate)
 
     # contrived example
-    using Winston
+    #using Winston
     sampRate = 256
     dur = 0.6
     epochStart = -0.15
@@ -557,10 +557,10 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
     wave1 = sin(2*pi*freq*tArr+phase)
     wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
-    p = plot(tArr, wave1)
-    l1 = LineX(timePnt, color="red")
-    add(p, l1)
-    display(p)
+    #p = plot(tArr, wave1)
+    #l1 = LineX(timePnt, color="red")
+    #add(p, l1)
+    #display(p)
     meanAmp =  meanERPAmplitude(wave1, sampPnt, "point", 0.05, sampRate)
     ```
 
