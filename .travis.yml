@@ -8,8 +8,14 @@ julia:
 notifications:
     email: false
 
+sudo: true
+
+before_install:
+ - sudo apt-get update
+ - sudo apt-get install -y python3-scipy python3-matplotlib
+
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("BrainWave"); Pkg.test("BrainWave"; coverage=true)'
+  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); ENV["PYTHON"]="/usr/bin/python3"; "Pkg.build("PyCall"); Pkg.build("BrainWave"); Pkg.test("BrainWave"; coverage=true)'
 after_success:
 - julia -e 'cd(Pkg.dir("BrainWave")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
