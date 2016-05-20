@@ -10,9 +10,12 @@ notifications:
 
 sudo: true
 
+matrix:
+  allow_failures:
+    - julia: nightly
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); ENV["PYTHON"]=""; Pkg.build("PyCall"); Pkg.build("BrainWave"); Pkg.test("BrainWave"; coverage=true)'
+  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); ENV["PYTHON"]=""; Pkg.build("PyCall"); using Conda; Conda.add("scipy"); Pkg.build("BrainWave"); Pkg.test("BrainWave"; coverage=true)'
 after_success:
 - julia -e 'cd(Pkg.dir("BrainWave")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
