@@ -129,6 +129,42 @@ function averageEpochs{T<:Real}(rec::Dict{ASCIIString,Array{T,3}})
 end
 
 @doc doc"""
+##### averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}; noiseEstimate::ASCIIString="global")
+      averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real, noiseEstimate::ASCIIString="global")
+
+Average the epochs of a segmented recording using iterative weighted averaging algorithm (see References below).
+
+##### Arguments
+
+* `rec::Dict{ASCIIString,Array{T,3}}`: Dictionary containing the segmented recordings for each condition.
+        The segmented recordings consist of 3-dimensional arrays (n_channels x n_samples x n_epochs).
+* `noiseWinStart`::Real: Time in seconds at which the noise estimate should start relative to the start of the epoch.
+* `noiseWinStop`::Real: Time in seconds at which the noise estimate should stop relative to the start of the epoch.
+* `preDur::Real`: Duration of recording before the experimental event, in seconds.
+* `sampRate::Real`: The samplig rate of the EEG recording.
+* `noiseEstimate::ASCIIString`: if `global` the estimate of the noise used to weight individual
+segments is derived from all the channels. If `byChannel` an noise estimate is derived for each
+channel and segments are weighted differently for each channel depending on the channel noise
+estimate.
+
+##### Returns
+
+* `ave::Dict{ASCIIString,Array{Real,2}}`: The averaged epochs for each condition.
+
+##### Examples
+
+```julia
+    epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
+    rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
+    segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
+    ave = averageEpochsIterativeWeighted(segs)
+```
+
+##### References
+
+* Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
+
+##### averageEpochs{T<:Real}(rec::Array{T,3})
 """->
 function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}; noiseEstimate::ASCIIString="global")
     eventList = collect(keys(rec))
