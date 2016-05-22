@@ -9,11 +9,13 @@ meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
 segment, simulateRecording,
 toRawEEG, RawEEG,
-input, plotRawEEG
+input, plotRawEEG,
+filterContinuousParallel!,
+dowork!
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
-using Compat, DataFrames, Distributions, DSP, PyCall
+using Compat, DataFrames, DistributedArrays, Distributions, DSP, PyCall
 import Compat.String
 import PyPlot; const plt = PyPlot
 VERSION < v"0.4-" && using Docile
@@ -390,6 +392,32 @@ Filter a continuous EEG recording.
     sampRate = 2048; nTaps=512
     rec, evtTab = simulateRecording(nChans=4, dur=120, sampRate=sampRate)
     filterContinuous!(rec, sampRate, "highpass", nTaps, [30], channels=[1,2,3,4], transitionWidth=0.2)
+
+    #using the parallel processing version of the function with a SharedArray
+    @everywhere using BrainWave
+    rec, evtTab = simulateRecording(nChans=4, dur=120, sampRate=sampRate);
+    #to exploit parallel processing you need to call julia with -p `n` parameter, or use addprocs(`n`)
+    #where n is the number of processes you want to use
+    #convert recording to SharedArray
+    sharedRec = convert(SharedArray, rec)
+    #call the filtering function
+    filterContinuous!(rec, sampRate, "highpass", nTaps, [30], channels=[1,2,3,4], transitionWidth=0.2)
+    #convert back to Array type
+    rec = convert(Array, sharedRec)
+
+    #using the parallel processing version of the function with a DistributedArray
+    @everywhere using BrainWave, DistributedArrays
+    rec, evtTab = simulateRecording(nChans=4, dur=120, sampRate=sampRate);
+    #to exploit parallel processing you need to call julia with -p `n` parameter, or use addprocs(`n`)
+    #where n is the number of processes you want to use
+    nProcsToUse = min(length(workers()), size(rec, 1))
+    workersToUse = workers()[1:nProcsToUse]
+    #convert recording to DistributedArray
+    dRec = distribute(rec, procs=workersToUse, dist=[nProcsToUse, 1])
+    #call the filtering function, note that you need to pass the ids of the workers to use
+    filterContinuous!(dRec, sampRate, "highpass", nTaps, [30], workersToUse, channels=[1,2,3,4], transitionWidth=0.2)
+    #convert back to Array type
+    rec[:,:] = convert(Array, dRec)
 ```
 
 """->
@@ -448,6 +476,185 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
     end
     return rec
 end
+
+
+function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::SharedArray{T},
+                                                         sampRate::Integer,
+                                                         filterType::ASCIIString,
+                                                         nTaps::Integer,
+                                                         cutoffs::Union{P, AbstractVector{P}};
+                                                         channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+                                                         transitionWidth::Real=0.2)
+    if filterType == "lowpass"
+        f3 = cutoffs[1]
+        f4 = cutoffs[1] * (1+transitionWidth)
+        f3 = (f3*2) / sampRate
+        f4 = (f4*2) / sampRate
+        f = [0, f3, f4, 1]
+        m = [1, 1, 0.00003, 0]
+    elseif filterType == "highpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f = [0, f1, f2, 0.999999, 1] #high pass
+        m = [0, 0.00003, 1, 1, 0]
+    elseif filterType == "bandpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f3 = cutoffs[2]
+        f4 = cutoffs[2] * (1+transitionWidth)
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f3 = (f3*2) / sampRate
+        f4 = (f4*2) / sampRate
+        f = [0, f1, f2, ((f2+f3)/2), f3, f4, 1]
+        m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
+    end
+
+    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+    #b = ones(Float32,nTaps)
+    nChannels = size(rec)[1]
+    ## if channels == nothing
+    ##     channels = [1:nChannels]
+    ## end
+
+    @sync @parallel for i=1:nChannels
+        if in(i, channels) == true
+            if VERSION < v"0.5-"
+                rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
+                rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:], 2)),1), b, "same"), 1)
+            else
+                rec[i,:] = fftconvolve(rec[i,:], b, "same")
+                rec[i,:] = flipdim(fftconvolve(flipdim(rec[i,:],1), b, "same"), 1)
+            end
+           
+        end
+    end
+    return rec
+end
+
+
+#for DistributedArray
+function filterContinuous!{T<:Real, P<:Real, Q<:Integer, W<:Integer}(rec::DArray{T},
+                                                         sampRate::Integer,
+                                                         filterType::ASCIIString,
+                                                         nTaps::Integer,
+                                                         cutoffs::Union{P, AbstractVector{P}},
+                                                         workersToUse::AbstractVector{W};
+                                                         channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+                                                         transitionWidth::Real=0.2)
+    if filterType == "lowpass"
+        f3 = cutoffs[1]
+        f4 = cutoffs[1] * (1+transitionWidth)
+        f3 = (f3*2) / sampRate
+        f4 = (f4*2) / sampRate
+        f = [0, f3, f4, 1]
+        m = [1, 1, 0.00003, 0]
+    elseif filterType == "highpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f = [0, f1, f2, 0.999999, 1] #high pass
+        m = [0, 0.00003, 1, 1, 0]
+    elseif filterType == "bandpass"
+        f1 = cutoffs[1] * (1-transitionWidth)
+        f2 = cutoffs[1]
+        f3 = cutoffs[2]
+        f4 = cutoffs[2] * (1+transitionWidth)
+        f1 = (f1*2) / sampRate
+        f2 = (f2*2) / sampRate
+        f3 = (f3*2) / sampRate
+        f4 = (f4*2) / sampRate
+        f = [0, f1, f2, ((f2+f3)/2), f3, f4, 1]
+        m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
+    end
+
+    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+    nChannels = size(rec)[1]
+
+    ## nProcsToUse = min(length(workers()), size(rec, 1))
+    ## dRec = distribute(rec, procs=workers()[1:nProcsToUse], dist=[nProcsToUse,1])
+    #println(workersToUse)
+    @sync for w in workersToUse 
+        @spawnat w doWorkFilterContinuousParallel!(rec, b, channels=channels)
+    end
+    #rec[:,:] = convert(Array, dRec)
+    #close(dRec)
+    #darray_closeall()
+end
+
+## #for DistributedArray
+## function filterContinuousParallel!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
+##                                                          sampRate::Integer,
+##                                                          filterType::ASCIIString,
+##                                                          nTaps::Integer,
+##                                                          cutoffs::Union{P, AbstractVector{P}};
+##                                                          channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+##                                                          transitionWidth::Real=0.2)
+##     if filterType == "lowpass"
+##         f3 = cutoffs[1]
+##         f4 = cutoffs[1] * (1+transitionWidth)
+##         f3 = (f3*2) / sampRate
+##         f4 = (f4*2) / sampRate
+##         f = [0, f3, f4, 1]
+##         m = [1, 1, 0.00003, 0]
+##     elseif filterType == "highpass"
+##         f1 = cutoffs[1] * (1-transitionWidth)
+##         f2 = cutoffs[1]
+##         f1 = (f1*2) / sampRate
+##         f2 = (f2*2) / sampRate
+##         f = [0, f1, f2, 0.999999, 1] #high pass
+##         m = [0, 0.00003, 1, 1, 0]
+##     elseif filterType == "bandpass"
+##         f1 = cutoffs[1] * (1-transitionWidth)
+##         f2 = cutoffs[1]
+##         f3 = cutoffs[2]
+##         f4 = cutoffs[2] * (1+transitionWidth)
+##         f1 = (f1*2) / sampRate
+##         f2 = (f2*2) / sampRate
+##         f3 = (f3*2) / sampRate
+##         f4 = (f4*2) / sampRate
+##         f = [0, f1, f2, ((f2+f3)/2), f3, f4, 1]
+##         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
+##     end
+
+##     b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+##     #b = ones(Float32,nTaps)
+##     nChannels = size(rec)[1]
+##     ## if channels == nothing
+##     ##     channels = [1:nChannels]
+##     ## end
+
+##     nProcsToUse = min(length(workers()), size(rec, 1))
+##     dRec = distribute(rec, procs=workers()[1:nProcsToUse], dist=[nProcsToUse,1])
+##     @sync for w=1:length(workers()[1:nProcsToUse])
+##         @spawnat workers()[w] doWorkFilterContinuousParallel!(dRec, b, channels=channels)
+##     end
+##     rec[:,:] = convert(Array, dRec)
+##     close(dRec)
+##     #darray_closeall()
+
+##     #return rec
+## end
+
+    function doWorkFilterContinuousParallel!{T<:Real, S<:Real, Q<:Int}(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)))
+    lIdx = collect(localindexes(rec)[1])
+    nRows = length(lIdx)
+    for i=1:nRows
+        if in(lIdx[i], channels)
+            if VERSION < v"0.5-"
+                localpart(rec)[i,:] = fftconvolve(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)), b, "same")
+                localpart(rec)[i,:] = flipdim(fftconvolve(flipdim(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)),1), b, "same"), 1)
+            else
+                localpart(rec)[i,:] = fftconvolve(localpart(rec)[i,:], b, "same")
+                localpart(rec)[i,:] = flipdim(fftconvolve(flipdim(localpart(rec)[i,:],1), b, "same"), 1)
+            end
+        end
+    end
+end
+    
 
 @doc doc"""
 """->
