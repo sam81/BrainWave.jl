@@ -2,8 +2,8 @@ Compat 0.7.18
 DataFrames
 Distributions
 DistributedArrays
+DocStringExtensions 
 DSP
 PyCall
 PyPlot
-Docile
 julia 0.4-

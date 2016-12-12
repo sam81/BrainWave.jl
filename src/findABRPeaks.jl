@@ -1,27 +1,46 @@
 
-## function findInflections{T<:Real}(y::AbstractMatrix{T}, sampRate::Real; epochStart::Real=0)
-##     y = vec(y)
-##     dy = diff(y)
-##     ddy = diff(dy)
-##     inflPnts = find(ddy[1:end-1].*ddy[2:end] .<0) +2
-##     xx = find(ddy.==0)
-##     append!(inflPnts, xx)
+
+"""
+Attempt to find peaks and troughs of the ABR response for a click of a given level. The algorithm is
+largely based on Bradley and Wilson (2004).
+
+$(SIGNATURES)
+
+##### Arguments
+
+* `sig::Union{AbstractMatrix{T}, AbstractVector{T}}`: the ABR waveform for which the peaks and troughs are sought. 
+* `stimLevel::Real`: the level of the click used to evoke the ABR response.
+* `sampRate::Real`: the sampling rate of the ABR recording.
+* `epochStart::Real`: the time, in seconds, at which the epoch starts.
+* `minInterPeakLatency::Real``: the minimum allowed latency between peaks.
+* `dBRef::String`: whether the stimulus level is specified in dB SPL `SPL`, or in dB normal hearing level `nHL`.
+
+##### Returns
+
+* `peakPoints::`: array containing the points at which peaks I-V are detected
+* `troughPoints`
+* `peakLatencies`
+* `troughLatencies`
+* `peakAmps`
+* `troughAmps`
+* `peakTroughAmps`
+* `prms`
 
 
-##     inflTimes = zeros(length(inflPnts))
+##### References
 
-##     for i=1:length(inflPnts)
-##         inflTimes[i] = (inflPnts[i]-1)/sampRate
-##     end
-##     inflTimes = inflTimes+epochStart
+* Bradley, A. P., & Wilson, W. J. (2004). Automated Analysis of the Auditory Brainstem Response. Proceedings of the 2004 Intelligent Sensors, Sensor Networks and Information Processing Conference, 2004., 541–546. http://doi.org/10.1109/ISSNIP.2004.1417519
 
-##     return inflPnts, inflTimes
+##### Examples
 
-## end
+```julia
 
+```
+
+"""
 #min interpeak latency = 0.5 ms
 #0 dB nHL = 31 dB ppe SPL
-function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}}, stimLevel::Real, sampRate::Real; epochStart::Real=0, minInterPeakLatency::Real=0.0005, dBRef::ASCIIString="SPL")
+function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}}, stimLevel::Real, sampRate::Real; epochStart::Real=0, minInterPeakLatency::Real=0.0005, dBRef::String="SPL")
 
     if dBRef == "SPL"
         stimLevel = stimLevel - 31
@@ -254,6 +273,16 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
     end
     if isnan(troughITime) == false
         minPeakIILat = troughITime + 0.25/1000
+    end
+
+    ## heuristic to try to find peak II when peak III is not found, this is experimental
+    #if ((isnan(maxPeakIILat) == true & isnan(peakVTime) == false) & (isnan(minPeakIILat) == false))
+    if isnan(maxPeakIILat) == true
+        if isnan(peakVTime) == false
+            if isnan(minPeakIILat) == false
+                maxPeakIILat = (peakVTime + minPeakIILat)/2.5
+            end
+        end
     end
 
     if ((isnan(minPeakIILat) == false) & (isnan(maxPeakIILat) == false))

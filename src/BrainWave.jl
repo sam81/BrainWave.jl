@@ -9,35 +9,37 @@ meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
 segment, simulateRecording,
 toRawEEG, RawEEG,
-input, plotRawEEG,
-filterContinuousParallel!,
-dowork!
+input, plotRawEEG
+#filterContinuousParallel!
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
 using Compat, DataFrames, DistributedArrays, Distributions, DSP, PyCall
 import Compat.String
 import PyPlot; const plt = PyPlot
-VERSION < v"0.4-" && using Docile
+using DocStringExtensions 
+##VERSION < v"0.4-" && using Docile
 
 #pyinitialize("python3")
 
 @pyimport scipy.signal as scisig
 include("findABRPeaks.jl")
 include("AbstractionLayer.jl")
-@doc doc"""
+"""
 Perform a weighted average of a list of averages. The weight of
 each average in the list is determined by the number of segments
 from which it was obtained.
 
+$(SIGNATURES)
+
 ##### Arguments
 
-* `aveListArray::Array{Dict{ASCIIString, Array{Real, 2}}}`: The list of averages for each experimental condition.
-* `nSegments::Array{Dict{ASCIIString, Integer}}`: The number of epochs on which each average is based.
+* `aveListArray::Array{Dict{String, Array{Real, 2}}}`: The list of averages for each experimental condition.
+* `nSegments::Array{Dict{String, Integer}}`: The number of epochs on which each average is based.
 
 ##### Returns
 
-* `weightedAve::Dict{ASCIIString,Array{Real,2}}`: The weighted average of the averages in the list.
+* `weightedAve::Dict{String,Array{Real,2}}`: The weighted average of the averages in the list.
 
 ##### Examples
 
@@ -55,11 +57,11 @@ from which it was obtained.
     aveAll, nSegsAll = averageAverages(aveList, nCleanByBlock)
 ```
 
-"""->
-function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{ASCIIString, Array{T, 2}}}, nSegments::Array{Dict{ASCIIString, P}})
+"""
+function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}})
     eventList = collect(keys(aveList[1]))
-    weightedAve = Dict{ASCIIString,Array{eltype(aveList[1][eventList[1]]),2}}() #(ASCIIString => Array{eltype(aveList[1][eventList[1]]),2})[]
-    nSegsSum = Dict{ASCIIString,Int}()#(ASCIIString => Int)[]
+    weightedAve = Dict{String,Array{eltype(aveList[1][eventList[1]]),2}}() #(String => Array{eltype(aveList[1][eventList[1]]),2})[]
+    nSegsSum = Dict{String,Int}()#(String => Int)[]
     for i=1:length(eventList)
         event = eventList[i]
         nSegsSum[event] = 0
@@ -79,20 +81,22 @@ function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{ASCIIString, A
     return weightedAve, nSegsSum
 end
 
-@doc doc"""
-##### averageEpochs{T<:Real}(rec::Dict{ASCIIString,Array{T,3}})
+"""
+##### averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
 
 Average the epochs of a segmented recording.
 
+$(SIGNATURES)
+
 ##### Arguments
 
-* `rec::Dict{ASCIIString,Array{T,3}}`: Dictionary containing the segmented recordings for each condition.
+* `rec::Dict{String,Array{T,3}}`: Dictionary containing the segmented recordings for each condition.
         The segmented recordings consist of 3-dimensional arrays (n_channels x n_samples x n_epochs).
 
 ##### Returns
 
-* `ave::Dict{ASCIIString,Array{Real,2}}`: The averaged epochs for each condition.
-* `n_segs::Dict{ASCIIString,Integer}`: The number of epochs averaged for each condition.
+* `ave::Dict{String,Array{Real,2}}`: The averaged epochs for each condition.
+* `n_segs::Dict{String,Integer}`: The number of epochs averaged for each condition.
 
 ##### Examples
 
@@ -104,7 +108,7 @@ Average the epochs of a segmented recording.
 ```
 
 ##### averageEpochs{T<:Real}(rec::Array{T,3})
-"""->
+"""
 
 function averageEpochs{T<:Real}(rec::Array{T,3})
 
@@ -114,12 +118,12 @@ function averageEpochs{T<:Real}(rec::Array{T,3})
     return ave, nSegs
 end
 
-function averageEpochs{T<:Real}(rec::Dict{ASCIIString,Array{T,3}})
+function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
 
 
     eventList = collect(keys(rec))
-    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()
-    nSegs = Dict{ASCIIString,Int}()
+    ave = Dict{String,Array{eltype(rec[eventList[1]]),2}}()
+    nSegs = Dict{String,Int}()
     for i=1:length(eventList)
         #nSegs[eventList[i]] = size(rec[eventList[i]])[3]
         #ave[eventList[i]] = mean(rec[eventList[i]], 3)[:,:,1]
@@ -128,28 +132,30 @@ function averageEpochs{T<:Real}(rec::Dict{ASCIIString,Array{T,3}})
     return ave, nSegs
 end
 
-@doc doc"""
-##### averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}; noiseEstimate::ASCIIString="global")
-      averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real, noiseEstimate::ASCIIString="global")
+"""
+##### averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}; noiseEstimate::String="global")
+      averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real, noiseEstimate::String="global")
 
 Average the epochs of a segmented recording using iterative weighted averaging algorithm (see References below).
 
+$(SIGNATURES)
+
 ##### Arguments
 
-* `rec::Dict{ASCIIString,Array{T,3}}`: Dictionary containing the segmented recordings for each condition.
+* `rec::Dict{String,Array{T,3}}`: Dictionary containing the segmented recordings for each condition.
         The segmented recordings consist of 3-dimensional arrays (n_channels x n_samples x n_epochs).
 * `noiseWinStart`::Real: Time in seconds at which the noise estimate should start relative to the start of the epoch.
 * `noiseWinStop`::Real: Time in seconds at which the noise estimate should stop relative to the start of the epoch.
 * `preDur::Real`: Duration of recording before the experimental event, in seconds.
 * `sampRate::Real`: The samplig rate of the EEG recording.
-* `noiseEstimate::ASCIIString`: if `global` the estimate of the noise used to weight individual
+* `noiseEstimate::String`: if `global` the estimate of the noise used to weight individual
 segments is derived from all the channels. If `byChannel` an noise estimate is derived for each
 channel and segments are weighted differently for each channel depending on the channel noise
 estimate.
 
 ##### Returns
 
-* `ave::Dict{ASCIIString,Array{Real,2}}`: The averaged epochs for each condition.
+* `ave::Dict{String,Array{Real,2}}`: The averaged epochs for each condition.
 
 ##### Examples
 
@@ -165,10 +171,10 @@ estimate.
 * Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
 
 ##### averageEpochs{T<:Real}(rec::Array{T,3})
-"""->
-function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}; noiseEstimate::ASCIIString="global")
+"""
+function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}; noiseEstimate::String="global")
     eventList = collect(keys(rec))
-    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()
+    ave = Dict{String,Array{eltype(rec[eventList[1]]),2}}()
     for i=1:length(eventList)
         ave[eventList[i]] = iterativeWeightedAverage(rec[eventList[i]], noiseEstimate=noiseEstimate)
     end
@@ -176,22 +182,24 @@ function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3
 end
 
 
-function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::ASCIIString="global")
+function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::String="global")
     eventList = collect(keys(rec))
-    ave = Dict{ASCIIString,Array{eltype(rec[eventList[1]]),2}}()
+    ave = Dict{String,Array{eltype(rec[eventList[1]]),2}}()
     for i=1:length(eventList)
         ave[eventList[i]] = iterativeWeightedAverage(rec[eventList[i]], noiseWinStart, noiseWinStop, preDur, sampRate, noiseEstimate=noiseEstimate)
     end
     return ave
 end
 
-@doc doc"""
+"""
 Perform baseline correction by subtracting the average pre-event
 voltage from each channel of a segmented recording.
 
+$(SIGNATURES)
+
 ##### Arguments
 
-* `rec::Dict{ASCIIString,Array{T,3}}`: The segmented recording.
+* `rec::Dict{String,Array{T,3}}`: The segmented recording.
 * `baselineStart::Real`: Start time of the baseline window relative to the event onset, in seconds.
                           The absolute value of `baselineStart` cannot be greater than `preDur`.
                           In practice `baselineStart` allows you to define a baseline window shorter
@@ -212,8 +220,8 @@ voltage from each channel of a segmented recording.
     baselineCorrect!(segs, -0.15, preDur, sampRate)
 ```
 
-"""->
-function baselineCorrect!{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
+"""
+function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
     eventList = collect(keys(rec))
     epochStartSample = round(Int, preDur*sampRate)
     baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
@@ -230,7 +238,7 @@ function baselineCorrect!{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, baselineSt
 
 end
 
-function baselineCorrect!{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, baselineStart::Real, baselineEnd::Real, preDur::Real, sampRate::Integer)
+function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, baselineEnd::Real, preDur::Real, sampRate::Integer)
     eventList = collect(keys(rec))
     epochStartSample = round(Int, preDur*sampRate)
     baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
@@ -249,8 +257,10 @@ function baselineCorrect!{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, baselineSt
 end
 
 
-@doc doc"""
+"""
 Delete a row or a column from a 2-dimensional array.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -279,7 +289,7 @@ Delete a row or a column from a 2-dimensional array.
     isequal(deleteSlice2D(x, [1,4], 2), x[:,2:3])
 ```
 
-"""->
+"""
 function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union{P, AbstractVector{P}}, axis::Integer)
     if in(axis, [1,2]) == false
         error("axis must be either 1 (rows), or 2 (columns)")
@@ -301,8 +311,10 @@ function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union
     return(x)
 end
 
-@doc doc"""
+"""
 Delete a slice from a 3-dimensional array.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -323,7 +335,7 @@ Delete a slice from a 3-dimensional array.
     isequal(deleteSlice3D(x, [2,3], 3), x[:,:, [1]])
 ```
 
-"""->
+"""
 function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union{P, AbstractVector{P}}, axis::Integer)
 
     if in(axis, [1,2,3]) == false
@@ -349,8 +361,10 @@ function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union{P, Abs
     return x
 end
 
-@doc doc"""
+"""
 Remove the mean value from each channel of an EEG recording.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -363,7 +377,7 @@ Remove the mean value from each channel of an EEG recording.
     detrendEEG!(x)
 ```
 
-"""->
+"""
 function detrendEEG!{T<:Real}(rec::AbstractMatrix{T})
 
     nChannels = size(rec)[1]
@@ -373,11 +387,12 @@ function detrendEEG!{T<:Real}(rec::AbstractMatrix{T})
 
 end
 
-@doc doc"""
-"""->
-function epochVariance{T<:Real}(rec::Dict{ASCIIString,Array{T,3}}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+"""
+$(SIGNATURES)
+"""
+function epochVariance{T<:Real}(rec::Dict{String,Array{T,3}}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
     eventList = collect(keys(rec))
-    epochVar = Dict{ASCIIString, Real}()
+    epochVar = Dict{String, Real}()
     for i=1:length(eventList)
         epochVar[eventList[i]] = epochVariance(rec[eventList[i]], winStart, winStop, preDur, sampRate)
     end
@@ -402,14 +417,16 @@ function epochVariance{T<:Real}(sweeps::Array{T,3}, winStart::Real, winStop::Rea
     epochVar = mean(var(sweeps[:,winStartSample:winStopSample,:], 3))
 end
 
-@doc doc"""
+"""
 Filter a continuous EEG recording.
+
+$(SIGNATURES)
 
 ##### Arguments
 
 * `rec::AbstractMatrix{Real}`: The nChannelsXnSamples array with the EEG recording.
 * `sampRate::Integer`: The EEG recording sampling rate.
-* `filterType::ASCIIString`:  The filter type., one of "lowpass", "highpass", or "bandpass".
+* `filterType::String`:  The filter type., one of "lowpass", "highpass", or "bandpass".
 * `nTaps::Integer`: The number of filter taps.
 * `cutoffs::Union{Real, AbstractVector{Real}}`:: The filter cutoffs. If "filterType" is "lowpass" or "highpass"
         the "cutoffs" array should contain a single value. If "filterType"
@@ -456,10 +473,10 @@ Filter a continuous EEG recording.
     rec[:,:] = convert(Array, dRec)
 ```
 
-"""->
+"""
 function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
                                                          sampRate::Integer,
-                                                         filterType::ASCIIString,
+                                                         filterType::String,
                                                          nTaps::Integer,
                                                          cutoffs::Union{P, AbstractVector{P}};
                                                          channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
@@ -492,11 +509,7 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
     end
 
     b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
-    #b = ones(Float32,nTaps)
     nChannels = size(rec)[1]
-    ## if channels == nothing
-    ##     channels = [1:nChannels]
-    ## end
 
     for i=1:nChannels
         if in(i, channels) == true
@@ -510,13 +523,15 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
            
         end
     end
-    return rec
+    #return rec
 end
 
-
-function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::SharedArray{T},
+#####################################
+# `filterContinuous!` for SharedArray
+#####################################
+function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::SharedArray{T, 2},
                                                          sampRate::Integer,
-                                                         filterType::ASCIIString,
+                                                         filterType::String,
                                                          nTaps::Integer,
                                                          cutoffs::Union{P, AbstractVector{P}};
                                                          channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
@@ -567,14 +582,15 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::SharedArray{T},
            
         end
     end
-    return rec
+    #return rec
 end
 
-
-#for DistributedArray
+#################################
+# `filterContinuous!` for DArray
+#################################
 function filterContinuous!{T<:Real, P<:Real, Q<:Integer, W<:Integer}(rec::DArray{T},
                                                          sampRate::Integer,
-                                                         filterType::ASCIIString,
+                                                         filterType::String,
                                                          nTaps::Integer,
                                                          cutoffs::Union{P, AbstractVector{P}},
                                                          workersToUse::AbstractVector{W};
@@ -624,7 +640,7 @@ end
 ## #for DistributedArray
 ## function filterContinuousParallel!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
 ##                                                          sampRate::Integer,
-##                                                          filterType::ASCIIString,
+##                                                          filterType::String,
 ##                                                          nTaps::Integer,
 ##                                                          cutoffs::Union{P, AbstractVector{P}};
 ##                                                          channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
@@ -692,8 +708,8 @@ end
 end
     
 
-@doc doc"""
-"""->
+"""
+"""
 function _centered(arr, newsize)
     # Return the center newsize portion of the array.
     currsize = size(arr)[1]
@@ -702,14 +718,16 @@ function _centered(arr, newsize)
     return arr[startind:endind]
 end
 
-@doc doc"""
+"""
 Convolve two 1-dimensional arrays using the FFT.
+
+$(SIGNATURES)
 
 ##### Arguments
 
 * `x::AbstractVector{T}`: First input.
 * `y::AbstractVector{T}`: Second input. Should have the same number of dimensions as `x`; if sizes of `x` and `y` are not equal then `x` has to be the larger array.
-* `mode::ASCIIString`: A string indicating the size of the output:
+* `mode::String`: A string indicating the size of the output:
     * "full": The output is the full discrete linear convolution of the inputs. (Default)
     * "valid": The output consists only of those elements that do not rely on the zero-padding.
     * "same": The output is the same size as `x`, centered with respect to the "full" output.
@@ -726,8 +744,8 @@ Convolve two 1-dimensional arrays using the FFT.
     fftconvolve(x, y, "same")
 ```
 
-"""->
-function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R}, mode::ASCIIString)
+"""
+function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R}, mode::String)
     s1 = size(x)[1]#check if array has two dim?
     s2 = size(y)[1]
     #println(typeof(x), typeof(y))
@@ -828,21 +846,22 @@ function findInflections{T}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, samp
 end
 
 
-@doc doc"""
-
+"""
 Find epochs with voltage values exceeding a given threshold.
+
+$(SIGNATURES)
 
 ##### Arguments
 
-* `rec::Dict{ASCIIString, Array{Real, 3}}`: The segmented recording.
+* `rec::Dict{String, Array{Real, 3}}`: The segmented recording.
 * `thresh::Union{Real, AbstractVector{Real}}`: The threshold value(s).
 * `chans::AbstractVector{Int}`: The indexes of the channels on which to find artefacts.
-* `chanlabels::AbstractVector{ASCIIString}`: The labels of the channels on which to find artefacts.
-* `chanList::AbstractVector{ASCIIString}`: The names of all the channels.
+* `chanlabels::AbstractVector{String}`: The labels of the channels on which to find artefacts.
+* `chanList::AbstractVector{String}`: The names of all the channels.
 
 ##### Returns
 
-* `segsToReject::Dict{ASCIIString,Array{Int64,1}}`: dictionary containing the list of segments to reject for each condition.
+* `segsToReject::Dict{String,Array{Int64,1}}`: dictionary containing the list of segments to reject for each condition.
 
 ##### Notes
 
@@ -872,8 +891,8 @@ value, its length must match the number of channels to check.
     #findArtefactThresh(segs, 20, ["Fp1", "F4"], chanLabels)
 ```
 
-"""->
-function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{ASCIIString, Array{T, 3}}, thresh::Union{P, AbstractVector{P}},
+"""
+function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T, 3}}, thresh::Union{P, AbstractVector{P}},
                                                           channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec[collect(keys(rec))[1]], 1)))
 
     eventList = collect(keys(rec))
@@ -897,7 +916,7 @@ function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{ASCIIString,
         end
     end
 
-    segsToReject = Dict{ASCIIString,Array{Int,1}}()#(ASCIIString => Array{Int,1})[]
+    segsToReject = Dict{String,Array{Int,1}}()#(String => Array{Int,1})[]
     for i=1:length(eventList)
         segsToReject[eventList[i]] = []
         for j=1:size(rec[eventList[i]])[3]
@@ -922,7 +941,7 @@ function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{ASCIIString,
 
 end
 
-function findArtefactThresh{T<:Real, P<:Real, R<:ASCIIString, S<:ASCIIString}(rec::Dict{ASCIIString, Array{T, 3}}, thresh::Union{P, AbstractVector{P}}, chanLabels::AbstractVector{S}, chanList::AbstractVector{R})
+function findArtefactThresh{T<:Real, P<:Real, R<:String, S<:String}(rec::Dict{String, Array{T, 3}}, thresh::Union{P, AbstractVector{P}}, chanLabels::AbstractVector{S}, chanList::AbstractVector{R})
     channels = (Int)[]
     for i=1:length(chanLabels)
         push!(channels, find(chanList .== chanLabels[i])[1])
@@ -931,15 +950,17 @@ function findArtefactThresh{T<:Real, P<:Real, R<:ASCIIString, S<:ASCIIString}(re
     return segsToReject
 end
 
-@doc doc"""
+"""
 Find the time point at which a waveform reaches a maximum or a minimum.
+
+$(SIGNATURES)
 
 ##### Arguments:
 
 * `wave::Union{AbstractVector{Real}, AbstractMatrix{Real}}`: the waveform for which the extremum should be found.
 * `searchStart::Real`: the starting time point, in seconds, of the window in which to search for the extremum.
 * `searchStop::Real`: the stopping time point, in seconds, of the window in which to search for the extremum.
-* `extremumSign::ASCIIString`: whether the sought extremum is of `positive` or `negative` sign.
+* `extremumSign::String`: whether the sought extremum is of `positive` or `negative` sign.
 * `epochStart::Real`: the time, in seconds, at which the epoch starts.
 * `samprate::Real`: the sampling rate of the signal.
 
@@ -978,8 +999,8 @@ Find the time point at which a waveform reaches a maximum or a minimum.
     #display(p)
 ```
 
-"""->
-function findExtremum{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, searchStart::Real, searchStop::Real, extremumSign::ASCIIString, epochStart::Real, sampRate::Real)
+"""
+function findExtremum{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real)
 
     if ndims(wave) > 1
         if in(1, size(wave)) == false
@@ -1010,13 +1031,15 @@ function findExtremum{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}
     return extremumPnt, extremumTime
 end
 
-@doc doc"""
+"""
+
+$(SIGNATURES)
 
 ##### References
 
 * Elberling, C., & Don, M. (1984). Quality estimation of averaged auditory brainstem responses. Scandinavian Audiology, 13(3), 187–197.
 * Ozdamar, O., & Delgado, R. E. (1996). Measurement of signal and noise characteristics in ongoing auditory brainstem response averaging. Annals of Biomedical Engineering, 24(6), 702–715.
-"""->
+"""
 function FMP{T<:Real}(segs::Array{T,3}; at=-1)
     if at == -1
         at = size(segs)[3]
@@ -1042,12 +1065,12 @@ function FMP{T<:Real}(segs::Array{T,3}; at=-1)
 
 end
 
-function FMP{T<:Real}(segs::Dict{ASCIIString,Array{T,3}}; at=-1)
+function FMP{T<:Real}(segs::Dict{String,Array{T,3}}; at=-1)
 
     eventList = collect(keys(segs))
-    FMPVals = Dict{ASCIIString,Array{Float64,2}}()
-    FMPNum = Dict{ASCIIString,Array{Float64,2}}()
-    FMPDen = Dict{ASCIIString,Array{Float64,2}}()
+    FMPVals = Dict{String,Array{Float64,2}}()
+    FMPNum = Dict{String,Array{Float64,2}}()
+    FMPDen = Dict{String,Array{Float64,2}}()
 
     for i=1:length(eventList)
         FMPVals[eventList[i]], FMPNum[eventList[i]], FMPDen[eventList[i]] = FMP(segs[eventList[i]], at=at)
@@ -1057,9 +1080,10 @@ function FMP{T<:Real}(segs::Dict{ASCIIString,Array{T,3}}; at=-1)
 end
 
 
-@doc doc"""
-"""->
-function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate::ASCIIString="global")
+"""
+$(SIGNATURES)
+"""
+function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate::String="global")
     if at == -1
         at = size(sweeps)[3]
     end
@@ -1139,12 +1163,12 @@ function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate:
 end
 
 
-function FMPIterativeWeighted{T<:Real}(segs::Dict{ASCIIString,Array{T,3}}; at=-1, noiseEstimate::ASCIIString="global")
+function FMPIterativeWeighted{T<:Real}(segs::Dict{String,Array{T,3}}; at=-1, noiseEstimate::String="global")
 
     eventList = collect(keys(segs))
-    FMPVals = Dict{ASCIIString,Array{Float64,2}}()
-    FMPNum = Dict{ASCIIString,Array{Float64,2}}()
-    FMPDen = Dict{ASCIIString,Array{Float64,2}}()
+    FMPVals = Dict{String,Array{Float64,2}}()
+    FMPNum = Dict{String,Array{Float64,2}}()
+    FMPDen = Dict{String,Array{Float64,2}}()
 
     for i=1:length(eventList)
         FMPVals[eventList[i]], FMPNum[eventList[i]], FMPDen[eventList[i]] = FMPIterativeWeighted(segs[eventList[i]], at=at, noiseEstimate=noiseEstimate)
@@ -1155,8 +1179,10 @@ end
 
 
 
-@doc doc"""
+"""
 Compute the autocorrelation function of a 1-dimensional signal.
+
+$(SIGNATURES)
 
 ##### Arguments:
 
@@ -1186,7 +1212,7 @@ Compute the autocorrelation function of a 1-dimensional signal.
     acf, lags = getACF(sig, sampRate, maxLag, normalize=true, window=hamming)
 ```
 
-"""->
+"""
 function getACF{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
 ##     """
 ## n = length(sig)
@@ -1272,8 +1298,10 @@ function getACF2{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, samp
     return out, lags
 end
 
-@doc doc"""
+"""
 Compute the autocorrelogram of a 1-dimensional array.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -1299,7 +1327,7 @@ Compute the autocorrelogram of a 1-dimensional array.
     acg, lags, t = getAutocorrelogram(sig, 256, 0.02, 30, 0.01)
 ```
 
-"""->
+"""
 function getAutocorrelogram{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
     winLengthPnt = floor(Int, winLength * sampRate)
     stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
@@ -1342,8 +1370,10 @@ function getAutocorrelogram2{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatr
     return acfMatrix, lags, timeArray3
 end
 
-@doc doc"""
+"""
 Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -1365,7 +1395,7 @@ Compute the signal-to-noise ratio at a given frequency in the power spectrum of 
     snr = getSNR(p, f, 140, 10, 1)
 ```
 
-"""->
+"""
 function getSNR{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
 
     sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
@@ -1377,9 +1407,11 @@ function getSNR{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVect
     return snr
 end
 
-@doc doc"""
+"""
 Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
 This function is the same as `getSNR`, but it additionaly returns the signal and noise magnitudes separately.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -1403,7 +1435,7 @@ This function is the same as `getSNR`, but it additionaly returns the signal and
     snr, sigMag, noiseMag = getSNR2(p, f, 140, 10, 1)
 ```
 
-"""->
+"""
 function getSNR2{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
 
     sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
@@ -1415,8 +1447,10 @@ function getSNR2{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVec
     return snr, sigMag, noiseMag
 end
 
-@doc doc"""
+"""
 Compute the spectrogram of a 1-dimensional array.
+
+$(SIGNATURES)
 
 ##### Arguments
 * `sig::Union{AbstractVector{Real}, AbstractMatrix{Real}}` The signal of which the spectrum should be computed.
@@ -1444,7 +1478,7 @@ If the signal length is not a multiple of the window length it is trucated.
     spec, f, t = getSpectrogram(sig, 256, 0.02, 30)
 ```
 
-"""->
+"""
 function getSpectrogram{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real; window::Function=rect, powerOfTwo::Bool=false)
     winLengthPnt = floor(Int, winLength * sampRate)
 
@@ -1464,8 +1498,10 @@ function getSpectrogram{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}
     return powerMatrix, freqArray, timeArray
 end
 
-@doc doc"""
+"""
 Compute the power spectrum of a 1-dimensional array.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -1487,7 +1523,7 @@ Compute the power spectrum of a 1-dimensional array.
     p, f = getSpectrum(sig, 256)
 ```
 
-"""->
+"""
 function getSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Integer; window::Function=rect, powerOfTwo::Bool=false)
     if ndims(sig) > 1
         if in(1, size(sig)) == false
@@ -1523,13 +1559,14 @@ function getSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, 
     end
 
     freqArray = collect(0:(nUniquePts-1)) * (sampRate / nfft)
-    #x = (ASCIIString => Array{Float64,1})[]
-    #x["freq"] = freq_array; x["mag"] = p
+
     return p, freqArray
 end
 
-@doc doc"""
+"""
 Compute the phase spectrum of a 1-dimensional array.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -1551,7 +1588,7 @@ Compute the phase spectrum of a 1-dimensional array.
     p, f = getPhaseSpectrum(sig, 256)
 ```
 
-"""->
+"""
 function getPhaseSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real; window::Function=rect, powerOfTwo::Bool=false)
     if ndims(sig) > 1
         if in(1, size(sig)) == false
@@ -1580,14 +1617,16 @@ function getPhaseSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{
     return p, freqArray
 end
 
-@doc doc"""
+"""
 Compute an iterative weighted average from a matrix of segmented EEG recordings.
+
+$(SIGNATURES)
 
 ##### Arguments
 
 * `sweeps`::Array{T,3}`: The matrix containing the segmented recording from which the
 average should be computed.
-* `noiseEstimate::ASCIIString`: if `global` the estimate of the noise used to weight individual
+* `noiseEstimate::String`: if `global` the estimate of the noise used to weight individual
 segments is derived from all the channels. If `byChannel` an noise estimate is derived for each
 channel and segments are weighted differently for each channel depending on the channel noise
 estimate.
@@ -1612,8 +1651,8 @@ iterativeWeightedAverage(sweeps, 0, 0.2, 0.1, 1000, noiseEstimate="global")
 
 * Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
 
-"""->
-function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}; noiseEstimate::ASCIIString="global")
+"""
+function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}; noiseEstimate::String="global")
 
     if in(noiseEstimate, ["global", "byChannel"]) == false
         error("`noiseEstimate` must be either `global`, or `byChannel`")
@@ -1658,7 +1697,7 @@ function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}; noiseEstimate::AS
     return weighted_ave
 end
 
-function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::ASCIIString="global")
+function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::String="global")
     #noiseWinStart - time in seconds at which the noise estimate should start relative to the start of the epoch
     #noiseWinStop - time in seconds at which the noise estimate should stop relative to the start of the epoch
 
@@ -1715,8 +1754,10 @@ function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}, noiseWinStart::Re
     return weighted_ave
 end
 
-@doc doc"""
+"""
 Compute the mean amplitude of an ERP waveform in a time window centered on a given point.
+
+$(SIGNATURES)
 
 #### Arguments:
 
@@ -1724,8 +1765,8 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
 * `center::Real`: the center of the window in which the mean amplitude should be computed. `center` can be specified either
                   in terms of sample point number, or in terms of time in seconds. If center is specified in terms of time
                   in seconds, the time at which the epoch starts, should be passed as an additional argument to the function.
-* `centerType::ASCIIString`: whether the `center` is specified in terms of sample point number `point`, or interms of time in seconds `time`.
-* `winLength::ASCIIString`: the length of the window, in seconds, over which to compute the meam amplitude.
+* `centerType::String`: whether the `center` is specified in terms of sample point number `point`, or interms of time in seconds `time`.
+* `winLength::String`: the length of the window, in seconds, over which to compute the meam amplitude.
 * `samprate::Real`: the sampling rate of the signal.
 * `epochStart::Real`: the time, in seconds, at which the epoch starts.
 
@@ -1767,8 +1808,8 @@ Compute the mean amplitude of an ERP waveform in a time window centered on a giv
     meanAmp =  meanERPAmplitude(wave1, sampPnt, "point", 0.05, sampRate)
     ```
 
-"""->
-function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::ASCIIString, winLength::Real, sampRate::Real)
+"""
+function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::String, winLength::Real, sampRate::Real)
 
     if ndims(wave) > 1
         if in(1, size(wave)) == false
@@ -1791,7 +1832,7 @@ function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix
 end
 
 
-function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::ASCIIString, winLength::Real, sampRate::Real, epochStart::Real)
+function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::String, winLength::Real, sampRate::Real, epochStart::Real)
     #centerType: point or time
 
     if ndims(wave) > 1
@@ -1814,13 +1855,15 @@ function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix
     return meanAmp
 end
 
-@doc doc"""
+"""
 Substitute the event table triggers listed in `trigList`
 with newTrig
 
+$(SIGNATURES)
+
 #### Arguments
 
-* `eventTable::Dict{ASCIIString,Any}`: The event table.
+* `eventTable::Dict{String,Any}`: The event table.
 * `trigList::AbstractVector{Integer}`: The list of triggers to substitute.
 * `newTrig::Integer`: The new trigger used to substitute the triggers in `trigList`.
 
@@ -1832,14 +1875,16 @@ with newTrig
     mergeEventTableCodes!(evtTab, [3,4], 3)
     ```
 
-"""->
-function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{ASCIIString,Any}, trigList::AbstractVector{T}, newTrig::Integer)
+"""
+function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String,Any}, trigList::AbstractVector{T}, newTrig::Integer)
     eventTable["code"][findin(eventTable["code"], trigList)] = newTrig
     return
 end
 
-@doc doc"""
+"""
 Find the exponent of the next power of 2 closest to `x`.
+
+$(SIGNATURES)
 
 #### Arguments
 
@@ -1853,19 +1898,21 @@ Find the exponent of the next power of 2 closest to `x`.
     isequal(2^(nextPowTwo(6)), 2^3)
     ```
 
-"""->
+"""
 function nextPowTwo(x::Real)
     out = round(Int, ceil(log2(x)))
     return out
 end
 
-@doc doc"""
+"""
 Remove epochs from a segmented recording.
+
+$(SIGNATURES)
 
 ##### Arguments
 
-* `rec::Dict{ASCIIString,Array{Real,3}}`: The segmented recording
-* `toRemove::Dict{ASCIIString,Array{P,1}}`: List of epochs to remove for each condition
+* `rec::Dict{String,Array{Real,3}}`: The segmented recording
+* `toRemove::Dict{String,Array{P,1}}`: List of epochs to remove for each condition
 
 ##### Examples
 
@@ -1873,15 +1920,15 @@ Remove epochs from a segmented recording.
     epochDur=0.5; preDur=0.15; events=[1,2]; sampRate=256;
     rec, evtTab = simulateRecording(dur=120, epochDur=epochDur, preDur=preDur, events=events)
     segs, nRaw = segment(rec, evtTab, -preDur, epochDur, sampRate)
-    segsToReject = Dict{ASCIIString,Array{Int,1}}()
+    segsToReject = Dict{String,Array{Int,1}}()
     segsToReject["1"] = [3,5]
     segsToReject["2"] = [1,2]
     #toRemove = @compat Dict("1" => [3,5], "2" => [2])
     removeEpochs!(segs, segsToReject)
 ```
 
-"""->
-function removeEpochs!{T<:Real, P<:Integer}(rec::Dict{ASCIIString,Array{T,3}}, toRemove::Dict{ASCIIString,Array{P,1}})
+"""
+function removeEpochs!{T<:Real, P<:Integer}(rec::Dict{String,Array{T,3}}, toRemove::Dict{String,Array{P,1}})
     eventList = collect(keys(rec))
     for i=1:length(eventList)
         code = eventList[i]
@@ -1890,9 +1937,10 @@ function removeEpochs!{T<:Real, P<:Integer}(rec::Dict{ASCIIString,Array{T,3}}, t
     #return rec
 end
 
-@doc doc"""
-
+"""
 Attempt to remove spurious triggers from an event table.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -1930,7 +1978,7 @@ duration than legitimate triggers.
     using BrainWave, Compat
 
     sentTrigs = [1,1,1,2,2,1,2,2,1,1] #triggers that were actually sent
-    evtTab = Dict{ASCIIString,Any}() #fictitious event table
+    evtTab = Dict{String,Any}() #fictitious event table
     evtTab["code"] = [1,1,5,1,7,2,5,2,1,2,8,2,1,1,7] #with spurious triggers
     evtTab["idx"] = collect(1:500:500*15)
     evtTab["dur"] = [0.001 for i=1:15]
@@ -1941,7 +1989,7 @@ duration than legitimate triggers.
     #but they can still be found if they differ from legitimate
     #triggers in duration
     sentTrigs = [1,2,3,4,5,6,7,8,9,10] #triggers that were actually sent
-    evtTab = Dict{ASCIIString,Any}() #fictitious event table
+    evtTab = Dict{String,Any}() #fictitious event table
     evtTab["code"] = [1,1,1,2,3,4,4,5,6,7,7,7,8,9,10] #with spurious triggers
     evtTab["idx"] = collect(1:500:500*15)
     evtTab["dur"] = [0.001 for i=1:15]
@@ -1953,8 +2001,8 @@ duration than legitimate triggers.
 
 ```
 
-"""->
-function removeSpuriousTriggers!(eventTable::Dict{ASCIIString, Any}, sentTrigs::Array{Int}, minTrigDur::Real, minTrig::Real, maxTrig::Real)
+"""
+function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array{Int}, minTrigDur::Real, minTrig::Real, maxTrig::Real)
     recTrigs = eventTable["code"]
     recTrigsStart = eventTable["idx"]
     recTrigsDur = eventTable["dur"]
@@ -1991,7 +2039,7 @@ function removeSpuriousTriggers!(eventTable::Dict{ASCIIString, Any}, sentTrigs::
     eventTable["dur"] = recTrigsDur
     eventTable["idx"] = recTrigsStart
 
-    resInfo = Dict{ASCIIString,Any}() #(ASCIIString => Any)[]
+    resInfo = Dict{String,Any}() #(String => Any)[]
     resInfo["match"] = match_found
     resInfo["lenSent"] = length(sentTrigs)
     resInfo["lenFound"] = length(recTrigs)
@@ -2002,8 +2050,9 @@ function removeSpuriousTriggers!(eventTable::Dict{ASCIIString, Any}, sentTrigs::
 end
 
 
-@doc doc"""
-"""->
+"""
+$(SIGNATURES)
+"""
 function RMS{T<:Real}(ave::Array{T,2}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
     nSamp = size(ave)[2]
     nChans = size(ave)[1]
@@ -2026,8 +2075,10 @@ function RMS{T<:Real}(ave::Array{T,2}, winStart::Real, winStop::Real, preDur::Re
 end
 
 
-@doc doc"""
+"""
 Rereference channels in a continuous recording.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -2042,7 +2093,7 @@ Rereference channels in a continuous recording.
     rerefCnt!(rec, 4, channels=[1, 2, 3])
 ```
 
-"""->
+"""
 function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer; channels::Union{P, AbstractVector{P}}=collect(1:size(rec, 1)))
 
     for i=1:length(channels)
@@ -2059,8 +2110,10 @@ function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer
 end
 
 
-@doc doc"""
+"""
 Segment a continuous EEG recording into discrete event-related epochs.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -2077,11 +2130,11 @@ Segment a continuous EEG recording into discrete event-related epochs.
 
 ##### Returns
 
-* `segs::Dict{ASCIIString,Array{T,3}}`: The segmented recording.
+* `segs::Dict{String,Array{T,3}}`: The segmented recording.
         The dictionary has a key for each condition.
         The corresponding key value is a 3D array with dimensions
         nChannels x nSamples x nSegments
-* `nSegs::Dict{ASCIIString,Int64}`: The number of segments for each condition.
+* `nSegs::Dict{String,Int64}`: The number of segments for each condition.
 
 ##### Examples
 
@@ -2091,14 +2144,14 @@ Segment a continuous EEG recording into discrete event-related epochs.
     segs, nSegs = segment(rec, evtTab, -preDur, epochDur, sampRate, eventsList=[1, 2], eventsLabelsList=["cnd1", "cnd2"])
 ```
 
-"""->
+"""
 
-function segment{T<:Real, P<:Integer, S<:ASCIIString}(rec::AbstractMatrix{T},
-                                                 eventTable::Dict{ASCIIString, Any},
+function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T},
+                                                 eventTable::Dict{String, Any},
                                                  epochStart::Real, epochEnd::Real,
                                                  sampRate::Integer;
                                                  eventsList::AbstractVector{P}=unique(eventTable["code"]),
-                                                 eventsLabelsList::AbstractVector{S}=ASCIIString[string(eventsList[i]) for i=1:length(eventsList)])
+                                                 eventsLabelsList::AbstractVector{S}=String[string(eventsList[i]) for i=1:length(eventsList)])
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
@@ -2107,7 +2160,7 @@ function segment{T<:Real, P<:Integer, S<:ASCIIString}(rec::AbstractMatrix{T},
     epochEndSample = round(Int, epochEnd*sampRate) - 1
 
     nSamples = epochEndSample - epochStartSample + 1
-    segs = Dict{ASCIIString,Array{eltype(rec),3}}() #(ASCIIString => Array{eltype(rec),3})[]
+    segs = Dict{String,Array{eltype(rec),3}}() 
     for i=1:length(eventsList)
         idx = trigs_pos[trigs .== eventsList[i]]
 
@@ -2120,7 +2173,7 @@ function segment{T<:Real, P<:Integer, S<:ASCIIString}(rec::AbstractMatrix{T},
                 if thisStartPnt < 0
                     print(idx[j], " Epoch starts before start of recording. \n")
                 end
-                if thisStopPnt > size(rec)[2]#rec.shape[1]
+                if thisStopPnt > size(rec)[2]
                     print(idx[j], " Epoch ends after end of recording. \n")
                 end
 
@@ -2130,7 +2183,7 @@ function segment{T<:Real, P<:Integer, S<:ASCIIString}(rec::AbstractMatrix{T},
             end
         end
     end
-    nSegs = Dict{ASCIIString,Int}() #(String => Int)[]
+    nSegs = Dict{String,Int}() 
     for i=1:length(eventsList) #count
         nSegs[eventsLabelsList[i]] = size(segs[eventsLabelsList[i]])[3]
     end
@@ -2139,9 +2192,11 @@ function segment{T<:Real, P<:Integer, S<:ASCIIString}(rec::AbstractMatrix{T},
 
 end
 
-@doc doc"""
+"""
 Generate a simulated EEG recordings. Not physiologically plausible.
 Mainly useful for testing purposes.
+
+$(SIGNATURES)
 
 ##### Arguments
 
@@ -2168,7 +2223,7 @@ Mainly useful for testing purposes.
     rec, evtTab = simulateRecording(dur=180, events=[1,2,3])
 ```
 
-"""->
+"""
 
 function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
                            events=[1,2], epochDur::Real=0.5, preDur::Real=0.2,
@@ -2190,13 +2245,15 @@ function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
         evt[i] = events[rand(1:length(events))]
     end
 
-    evtTab = @compat Dict{ASCIIString,Any}("code" => evt,
+    evtTab = @compat Dict{String,Any}("code" => evt,
                                       "idx" => startPoints)
     return rec, evtTab
 end
 
 """
 `input(prompt::AbstractString="")`
+
+$(SIGNATURES)
 
 Read a string from STDIN. The trailing newline is stripped.
 

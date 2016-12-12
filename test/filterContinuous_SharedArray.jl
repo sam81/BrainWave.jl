@@ -8,7 +8,7 @@ rec2 = deepcopy(rec)
 chans = collect(1:nChans)
 
 
-filterContinuous!(rec, sampRate, "highpass", nTaps, [30], channels=chans, transitionWidth=0.2);
+filterContinuous!(rec, sampRate, "highpass", nTaps, [30], channels=chans, transitionWidth=0.2)
 
 
 sharedRec = convert(SharedArray, rec2);
