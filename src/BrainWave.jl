@@ -25,6 +25,7 @@ using DocStringExtensions
 @pyimport scipy.signal as scisig
 include("findABRPeaks.jl")
 include("AbstractionLayer.jl")
+
 """
 Perform a weighted average of a list of averages. The weight of
 each average in the list is determined by the number of segments
@@ -82,8 +83,6 @@ function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{
 end
 
 """
-##### averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
-
 Average the epochs of a segmented recording.
 
 $(SIGNATURES)
@@ -133,9 +132,6 @@ function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
 end
 
 """
-##### averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}; noiseEstimate::String="global")
-      averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real, noiseEstimate::String="global")
-
 Average the epochs of a segmented recording using iterative weighted averaging algorithm (see References below).
 
 $(SIGNATURES)
@@ -170,7 +166,6 @@ estimate.
 
 * Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
 
-##### averageEpochs{T<:Real}(rec::Array{T,3})
 """
 function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}; noiseEstimate::String="global")
     eventList = collect(keys(rec))
