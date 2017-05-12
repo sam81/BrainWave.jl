@@ -18,7 +18,6 @@ using Compat, DataFrames, DistributedArrays, Distributions, DSP, PyCall
 import Compat.String
 import PyPlot; const plt = PyPlot
 using DocStringExtensions 
-##VERSION < v"0.4-" && using Docile
 
 #pyinitialize("python3")
 

@@ -1,7 +1,0 @@
-site_name: BrainWave.jl
-theme: readthedocs
-pages:
-    - Introduction: 'index.md'
-    - Tutorial: 'tutorial.md'
-    - Function Reference: 'API.md'
-
