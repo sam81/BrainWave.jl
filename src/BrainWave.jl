@@ -1526,13 +1526,17 @@ function getSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, 
         sig = vec(sig)
     end
     n = length(sig)
+    w = window(n)
+    sig = sig.*w
     if powerOfTwo == true
-        nfft = 2^nextPowTwo(n)
+        nfft = nextpow2(n) #2^nextPowTwo(n)
+        if nfft != n #zero-pad
+            sig = vcat(sig, zeros(eltype(sig), nfft-n))
+        end
     else
         nfft = n
     end
-    w = window(n)
-    sig = sig.*w
+
 
     p = fft(sig)#, nfft) # take the fourier transform
 
@@ -1590,15 +1594,17 @@ function getPhaseSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{
         end
         sig = vec(sig)
     end
-
     n = length(sig)
+    w = window(n)
+    sig = sig.*w
     if powerOfTwo == true
-        nfft = 2^nextPowTwo(n)
+        nfft = nextpow2(n) #2^nextPowTwo(n)
+        if nfft != n #zero-pad
+            sig = vcat(sig, zeros(eltype(sig), nfft-n))
+        end
     else
         nfft = n
     end
-    w = window(n)
-    sig = sig.*w
 
     p = fft(sig)#, nfft) # take the fourier transform
 
