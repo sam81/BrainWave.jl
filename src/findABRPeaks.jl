@@ -86,7 +86,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
     ddy = zeros(size(sig)); ddy[:,2:size(sig)[2]] = diff(dy, 2)
 
 
-    peakVCandidates = find((peakTimes .< maxPeakVLat ) & (peakTimes .> minPeakVLat))
+    peakVCandidates = find((peakTimes .< maxPeakVLat ) .& (peakTimes .> minPeakVLat))
     nPeakVCandidates = length(peakVCandidates)
     if nPeakVCandidates == 0
         peakVPnt = NaN
@@ -120,7 +120,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         maxPeakIIILat = peakVTime - minPeakVpeakIII_IPL
 
         #Peak I
-        peakICandidates = find((peakTimes .< maxPeakILat ) & (peakTimes .> minPeakILat))
+        peakICandidates = find((peakTimes .< maxPeakILat ) .& (peakTimes .> minPeakILat))
         nPeakICandidates = length(peakICandidates)
         if nPeakICandidates == 0
             peakIPnt = NaN
@@ -135,7 +135,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         end
 
         #Peak III
-        peakIIICandidates = find((peakTimes .< maxPeakIIILat ) & (peakTimes .> minPeakIIILat))
+        peakIIICandidates = find((peakTimes .< maxPeakIIILat ) .& (peakTimes .> minPeakIIILat))
         nPeakIIICandidates = length(peakIIICandidates)
         if nPeakIIICandidates == 0
             peakIIIPnt = NaN
@@ -153,11 +153,11 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         minTroughVLat = peakVTime + minPeakVTroughVLat
         maxTroughVLat = peakVTime + maxPeakVTroughVLat
 
-        troughVCandidates = find((troughTimes .< maxTroughVLat ) & (troughTimes .> minTroughVLat))
+        troughVCandidates = find((troughTimes .< maxTroughVLat ) .& (troughTimes .> minTroughVLat))
         troughVCandidates = troughVCandidates[find(sig[troughPnts[troughVCandidates]] .< sig[peakVPnt])] #ensure trough amp is less than peak amp
         nTroughVCandidates = length(troughVCandidates)
         if nTroughVCandidates == 0
-            troughVCandidates2 = find((inflTimes .< maxTroughVLat ) & (inflTimes .> minTroughVLat))
+            troughVCandidates2 = find((inflTimes .< maxTroughVLat ) .& (inflTimes .> minTroughVLat))
             troughVCandidates2 = troughVCandidates2[find(sig[inflPnts[troughVCandidates2]] .< sig[peakVPnt])] #ensure trough amp is less than peak amp
             nTroughVCandidates2 = length(troughVCandidates2)
             if nTroughVCandidates2 == 0
@@ -169,7 +169,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[troughVCandidates2]] .== minimum(sig[inflPnts[troughVCandidates2]])) #need to check here which point to take
                 ##idx = find(abs(diff(sig[inflPnts[troughVCandidates2]-1])) .== minimum(abs(diff(sig[inflPnts[troughVCandidates2]-1])))) #need to check here which point to take
-                idx = find(abs(dy[inflPnts[troughVCandidates2]]) .== minimum(abs(dy[inflPnts[troughVCandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[troughVCandidates2]]) .== minimum(abs.(dy[inflPnts[troughVCandidates2]])))[1]
                 troughVPnt = inflPnts[troughVCandidates2[idx]]
                 troughVTime = inflTimes[troughVCandidates2[idx]]
             end
@@ -194,11 +194,11 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         minTroughIIILat = peakIIITime + minPeakIIITroughIIILat
         maxTroughIIILat = peakIIITime + maxPeakIIITroughIIILat
 
-        troughIIICandidates = find((troughTimes .< maxTroughIIILat ) & (troughTimes .> minTroughIIILat))
+        troughIIICandidates = find((troughTimes .< maxTroughIIILat ) .& (troughTimes .> minTroughIIILat))
         troughIIICandidates = troughIIICandidates[find(sig[troughPnts[troughIIICandidates]] .< sig[peakIIIPnt])] #ensure trough amp is less than peak amp
         nTroughIIICandidates = length(troughIIICandidates)
         if nTroughIIICandidates == 0
-            troughIIICandidates2 = find((inflTimes .< maxTroughIIILat ) & (inflTimes .> minTroughIIILat))
+            troughIIICandidates2 = find((inflTimes .< maxTroughIIILat ) .& (inflTimes .> minTroughIIILat))
             troughIIICandidates2 = troughIIICandidates2[find(sig[inflPnts[troughIIICandidates2]] .< sig[peakIIIPnt])] #ensure trough amp is less than peak amp
             nTroughIIICandidates2 = length(troughIIICandidates2)
             if nTroughIIICandidates2 == 0
@@ -210,7 +210,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[troughIIICandidates2]] .== minimum(sig[inflPnts[troughIIICandidates2]])) #need to check here which point to take
                 ##idx = find(sig[inflPnts[troughIIICandidates2]] .== minimum(diff(sig[inflPnts[troughIIICandidates2]-1]))) #need to check here which point to take
-                idx = find(abs(dy[inflPnts[troughIIICandidates2]]) .== minimum(abs(dy[inflPnts[troughIIICandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[troughIIICandidates2]]) .== minimum(abs.(dy[inflPnts[troughIIICandidates2]])))[1]
                 troughIIIPnt = inflPnts[troughIIICandidates2[idx]]
                 troughIIITime = inflTimes[troughIIICandidates2[idx]]
             end
@@ -234,11 +234,11 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         minTroughILat = peakITime + minPeakITroughILat
         maxTroughILat = peakITime + maxPeakITroughILat
 
-        troughICandidates = find((troughTimes .< maxTroughILat ) & (troughTimes .> minTroughILat))
+        troughICandidates = find((troughTimes .< maxTroughILat ) .& (troughTimes .> minTroughILat))
         troughICandidates = troughICandidates[find(sig[troughPnts[troughICandidates]] .< sig[peakIPnt])] #ensure trough amp is less than peak amp
         nTroughICandidates = length(troughICandidates)
         if nTroughICandidates == 0
-            troughICandidates2 = find((inflTimes .< maxTroughILat ) & (inflTimes .> minTroughILat))
+            troughICandidates2 = find((inflTimes .< maxTroughILat ) .& (inflTimes .> minTroughILat))
             troughICandidates2 = troughICandidates2[find(sig[inflPnts[troughICandidates2]] .< sig[peakIPnt])] #ensure trough amp is less than peak amp
             nTroughICandidates2 = length(troughICandidates2)
             if nTroughICandidates2 == 0
@@ -250,7 +250,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[troughICandidates2]] .== minimum(sig[inflPnts[troughICandidates2]])) #need to check here which point to take
                 ##idx = find(abs(diff(sig[inflPnts[troughICandidates2]-1])) .== minimum(abs(diff(sig[inflPnts[troughICandidates2]-1]))))[1] #need to check here which point to take
-                idx = find(abs(dy[inflPnts[troughICandidates2]]) .== minimum(abs(dy[inflPnts[troughICandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[troughICandidates2]]) .== minimum(abs.(dy[inflPnts[troughICandidates2]])))[1]
                 troughIPnt = inflPnts[troughICandidates2[idx]]
                 troughITime = inflTimes[troughICandidates2[idx]]
             end
@@ -285,11 +285,11 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         end
     end
 
-    if ((isnan(minPeakIILat) == false) & (isnan(maxPeakIILat) == false))
-        peakIICandidates = find((peakTimes .< maxPeakIILat ) & (peakTimes .> minPeakIILat))
+    if ((isnan(minPeakIILat) == false) .& (isnan(maxPeakIILat) == false))
+        peakIICandidates = find((peakTimes .< maxPeakIILat ) .& (peakTimes .> minPeakIILat))
         nPeakIICandidates = length(peakIICandidates)
         if nPeakIICandidates == 0
-            peakIICandidates2 = find((inflTimes .< maxPeakIILat ) & (inflTimes .> minPeakIILat))
+            peakIICandidates2 = find((inflTimes .< maxPeakIILat ) .& (inflTimes .> minPeakIILat))
             nTroughICandidates2 = length(peakIICandidates2)
             if nTroughICandidates2 == 0
                 peakIIPnt = NaN
@@ -300,7 +300,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[peakIICandidates2]] .== maximum(sig[inflPnts[peakIICandidates2]]))
                 ##idx = find(sig[inflPnts[peakIICandidates2]] .== minimum(diff(sig[inflPnts[peakIICandidates2]-1]))) #need to check here which point to take
-                idx = find(abs(dy[inflPnts[peakIICandidates2]]) .== minimum(abs(dy[inflPnts[peakIICandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[peakIICandidates2]]) .== minimum(abs.(dy[inflPnts[peakIICandidates2]])))[1]
                 peakIIPnt = inflPnts[peakIICandidates2[idx]]
                 peakIITime = inflTimes[peakIICandidates2[idx]]
             end
@@ -327,12 +327,12 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         minTroughIILat = peakIITime + minPeakIITroughIILat
     end
 
-    if ((isnan(minTroughIILat) == false) & (isnan(maxTroughIILat) == false))
-        troughIICandidates = find((troughTimes .< maxTroughIILat ) & (troughTimes .> minTroughIILat))
+    if ((isnan(minTroughIILat) == false) .& (isnan(maxTroughIILat) == false))
+        troughIICandidates = find((troughTimes .< maxTroughIILat ) .& (troughTimes .> minTroughIILat))
         troughIICandidates = troughIICandidates[find(sig[troughPnts[troughIICandidates]] .< sig[peakIIPnt])] #ensure trough amp is less than peak amp
         nTroughIICandidates = length(troughIICandidates)
         if nTroughIICandidates == 0
-            troughIICandidates2 = find((inflTimes .< maxTroughIILat ) & (inflTimes .> minTroughIILat))
+            troughIICandidates2 = find((inflTimes .< maxTroughIILat ) .& (inflTimes .> minTroughIILat))
             troughIICandidates2 = troughIICandidates2[find(sig[inflPnts[troughIICandidates2]] .< sig[peakIIPnt])] #ensure trough amp is less than peak amp
             nTroughIICandidates2 = length(troughIICandidates2)
             if nTroughIICandidates2 == 0
@@ -344,7 +344,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[troughIICandidates2]] .== minimum(sig[inflPnts[troughIICandidates2]])) #need to check here which point to take
                 ##idx = find(sig[inflPnts[troughIICandidates2]] .== minimum(diff(sig[inflPnts[troughIICandidates2]-1]))) #need to check here which point to take
-                idx = find(abs(dy[inflPnts[troughIICandidates2]]) .== minimum(abs(dy[inflPnts[troughIICandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[troughIICandidates2]]) .== minimum(abs.(dy[inflPnts[troughIICandidates2]])))[1]
                 troughIIPnt = inflPnts[troughIICandidates2[idx]]
                 troughIITime = inflTimes[troughIICandidates2[idx]]
             end
@@ -373,11 +373,11 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         minPeakIVLat = troughIIITime + 0.25/1000
     end
 
-    if ((isnan(minPeakIVLat) == false) & (isnan(maxPeakIVLat) == false))
-        peakIVCandidates = find((peakTimes .< maxPeakIVLat ) & (peakTimes .> minPeakIVLat))
+    if ((isnan(minPeakIVLat) == false) .& (isnan(maxPeakIVLat) == false))
+        peakIVCandidates = find((peakTimes .< maxPeakIVLat ) .& (peakTimes .> minPeakIVLat))
         nPeakIVCandidates = length(peakIVCandidates)
         if nPeakIVCandidates == 0
-            peakIVCandidates2 = find((inflTimes .< maxPeakIVLat ) & (inflTimes .> minPeakIVLat))
+            peakIVCandidates2 = find((inflTimes .< maxPeakIVLat ) .& (inflTimes .> minPeakIVLat))
             nPeakIVCandidates2 = length(peakIVCandidates2)
             if nPeakIVCandidates2 == 0
                 peakIVPnt = NaN
@@ -388,7 +388,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[peakIVCandidates2]] .== maximum(sig[inflPnts[peakIVCandidates2]]))
                 ##idx = find(sig[inflPnts[peakIVCandidates2]] .== minimum(diff(sig[inflPnts[peakIVCandidates2]-1]))) #need to check here which point to take
-                idx = find(abs(dy[inflPnts[peakIVCandidates2]]) .== minimum(abs(dy[inflPnts[peakIVCandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[peakIVCandidates2]]) .== minimum(abs.(dy[inflPnts[peakIVCandidates2]])))[1]
                 peakIVPnt = inflPnts[peakIVCandidates2[idx]]
                 peakIVTime = inflTimes[peakIVCandidates2[idx]]
             end
@@ -415,12 +415,12 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
         minTroughIVLat = peakIVTime + minPeakIVTroughIVLat
     end
 
-    if ((isnan(minTroughIVLat) == false) & (isnan(maxTroughIVLat) == false))
-        troughIVCandidates = find((troughTimes .< maxTroughIVLat ) & (troughTimes .> minTroughIVLat))
+    if ((isnan(minTroughIVLat) == false) .& (isnan(maxTroughIVLat) == false))
+        troughIVCandidates = find((troughTimes .< maxTroughIVLat ) .& (troughTimes .> minTroughIVLat))
         troughIVCandidates = troughIVCandidates[find(sig[troughPnts[troughIVCandidates]] .< sig[peakIVPnt])] #ensure trough amp is less than peak amp
         nTroughIVCandidates = length(troughIVCandidates)
         if nTroughIVCandidates == 0
-            troughIVCandidates2 = find((inflTimes .< maxTroughIVLat ) & (inflTimes .> minTroughIVLat))
+            troughIVCandidates2 = find((inflTimes .< maxTroughIVLat ) .& (inflTimes .> minTroughIVLat))
             troughIVCandidates2 = troughIVCandidates2[find(sig[inflPnts[troughIVCandidates2]] .< sig[peakIVPnt])] #ensure trough amp is less than peak amp
             nTroughIVCandidates2 = length(troughIVCandidates2)
             if nTroughIVCandidates2 == 0
@@ -432,7 +432,7 @@ function findABRPeaks{T<:Real}(sig::Union{AbstractMatrix{T}, AbstractVector{T}},
             else
                 ##idx = find(sig[inflPnts[troughIVCandidates2]] .== minimum(sig[inflPnts[troughIVCandidates2]])) #need to check here which point to take
                 ##idx = find(sig[inflPnts[troughIVCandidates2]] .== minimum(diff(sig[inflPnts[troughIVCandidates2]-1]))) #need to check here which point to take
-                idx = find(abs(dy[inflPnts[troughIVCandidates2]]) .== minimum(abs(dy[inflPnts[troughIVCandidates2]])))[1]
+                idx = find(abs.(dy[inflPnts[troughIVCandidates2]]) .== minimum(abs.(dy[inflPnts[troughIVCandidates2]])))[1]
                 troughIVPnt = inflPnts[troughIVCandidates2[idx]]
                 troughIVTime = inflTimes[troughIVCandidates2[idx]]
             end

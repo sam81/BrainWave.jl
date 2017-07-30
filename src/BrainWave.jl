@@ -14,8 +14,10 @@ input, plotRawEEG
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
-using Compat, DataFrames, DistributedArrays, Distributions, DSP, PyCall
-import Compat.String
+
+using DataFrames, Distributions, DSP, PyCall
+using DistributedArrays
+#import Compat.String
 import PyPlot; const plt = PyPlot
 using DocStringExtensions 
 
@@ -24,6 +26,7 @@ using DocStringExtensions
 @pyimport scipy.signal as scisig
 include("findABRPeaks.jl")
 include("AbstractionLayer.jl")
+
 
 """
 Perform a weighted average of a list of averages. The weight of
@@ -1392,7 +1395,7 @@ $(SIGNATURES)
 """
 function getSNR{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
 
-    sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
+    sigIdx = find(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
@@ -1432,7 +1435,7 @@ $(SIGNATURES)
 """
 function getSNR2{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
 
-    sigIdx = find(abs(freqArr .- sigFreq) .== minimum(abs(freqArr .- sigFreq)))[1]
+    sigIdx = find(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
@@ -1542,7 +1545,7 @@ function getSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, 
 
     nUniquePts = ceil(Int, (nfft+1)/2)
     p = p[1:nUniquePts]
-    p = abs(p)
+    p = abs.(p)
     p = p ./ n  # scale by the number of points so that
     # the magnitude does not depend on the length
     # of the signal or on its sampling frequency
@@ -2007,9 +2010,9 @@ function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array
     recTrigsStart = eventTable["idx"]
     recTrigsDur = eventTable["dur"]
 
-    orig_len = length(recTrigs[(recTrigs .<maxTrig) & (recTrigs .>minTrig)])
+    orig_len = length(recTrigs[(recTrigs .<maxTrig) .& (recTrigs .>minTrig)])
 
-    allowedTrigs = round(Int16, unique(sentTrigs))
+    allowedTrigs = round.(Int16, unique(sentTrigs))
     allowedIdx = findin(recTrigs, allowedTrigs)
 
     recTrigsDur = recTrigsDur[allowedIdx]
@@ -2245,8 +2248,8 @@ function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
         evt[i] = events[rand(1:length(events))]
     end
 
-    evtTab = @compat Dict{String,Any}("code" => evt,
-                                      "idx" => startPoints)
+    evtTab =  Dict{String,Any}("code" => evt,
+                               "idx" => startPoints)
     return rec, evtTab
 end
 
