@@ -756,9 +756,44 @@ function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R
     end
 end
 
+"""
+Find peaks in a waveform. This function computes the first derivative of the waveform to find
+critical points. Then finds the peaks by selecting the critical points at which the second
+derivative is negative.
+
+$(SIGNATURES)
+
+##### Arguments
+
+* `y::Union{AbstractMatrix{Real},AbstractVector{Real}}`: Waveform of which peaks are sought. `y` is converted to
+                                                         a vector before processing, so sensible inputs would be a vector,
+                                                         a Nx1 matrix, or a 1xN matrix.
+* `sampRate::Real`: Waveform sampling rate.
+* `epochStart::Real`: the time, in seconds, at which the epoch starts relative to the starting time of the stimulus
+                      (i.e. if the epoch starts before the start of the stimulus `epochStart` is negative).
+
+##### Returns
+
+* `peakPoints::AbstractVector{Real}`: The indexes of the peak points.
+* `peakTimes::AbstractVector{Real}`: The times of the peak points.
+
+##### Examples
+
+```julia
+    sampRate = 256; nTaps=64
+    rec, evtTab = simulateRecording(nChans=1, dur=4, sampRate=sampRate)
+    filterContinuous!(rec, sampRate, "lowpass", nTaps, [2], channels=[1], transitionWidth=0.2)
+    pkPnts, pkTimes = findPeaks(rec[1,:], sampRate)
+    ## not run
+    ## using PlotlyJS
+    ## s1 = scatter(;x=collect(1:length(rec[1,:])), y=rec[1,:])
+    ## s2 = scatter(;x=pkPnts, y=rec[1, pkPnts], mode="markers")
+    ## plot([s1, s2])
+```
+"""
 function findPeaks{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
-    peakPnts = (Int)[]
-    crPnts = (Int)[]
+    peakPnts = (Int)[] #peak points
+    crPnts = (Int)[] #critical points
     
     y = vec(y)
     dy = diff(y)
@@ -787,7 +822,41 @@ function findPeaks{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, samp
     return peakPnts, peakTimes
 end
 
+"""
+Find troughs in a waveform. This function computes the first derivative of the waveform to find
+critical points. Then finds the troughs by selecting the critical points at which the second
+derivative is positive.
 
+$(SIGNATURES)
+
+##### Arguments
+
+* `y::Union{AbstractMatrix{Real},AbstractVector{Real}}`: Waveform of which troughs are sought. `y` is converted to
+                                                         a vector before processing, so sensible inputs would be a vector,
+                                                         a Nx1 matrix, or a 1xN matrix.
+* `sampRate::Real`: Waveform sampling rate.
+* `epochStart::Real`: the time, in seconds, at which the epoch starts relative to the starting time of the stimulus
+                      (i.e. if the epoch starts before the start of the stimulus `epochStart` is negative).
+
+##### Returns
+
+* `troughsPoints::AbstractVector{Real}`: The indexes of the troughs points.
+* `troughsTimes::AbstractVector{Real}`: The times of the troughs points.
+
+##### Examples
+
+```julia
+    sampRate = 256; nTaps=64
+    rec, evtTab = simulateRecording(nChans=1, dur=4, sampRate=sampRate)
+    filterContinuous!(rec, sampRate, "lowpass", nTaps, [2], channels=[1], transitionWidth=0.2)
+    trPnts, trTimes = findTroughs(rec[1,:], sampRate)
+    ## not run
+    ## using PlotlyJS
+    ## s1 = scatter(;x=collect(1:length(rec[1,:])), y=rec[1,:])
+    ## s2 = scatter(;x=trPnts, y=rec[1, trPnts], mode="markers")
+    ## plot([s1, s2])
+```
+"""
 function findTroughs{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
     troughPnts = (Int)[]
     crPnts = (Int)[]
@@ -818,7 +887,40 @@ function findTroughs{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sa
     return troughPnts, troughTimes
 end
 
+"""
+Find inflection points in a waveform. This function finds inflection points by looking for sign changes in the second derivative. 
+derivative is positive.
 
+$(SIGNATURES)
+
+##### Arguments
+
+* `y::Union{AbstractMatrix{Real},AbstractVector{Real}}`: Waveform of which inflection points are sought. `y` is converted to
+                                                         a vector before processing, so sensible inputs would be a vector,
+                                                         a Nx1 matrix, or a 1xN matrix.
+* `sampRate::Real`: Waveform sampling rate.
+* `epochStart::Real`: the time, in seconds, at which the epoch starts relative to the starting time of the stimulus
+                      (i.e. if the epoch starts before the start of the stimulus `epochStart` is negative).
+
+##### Returns
+
+* `inflPnts::AbstractVector{Real}`: The indexes of the inflection points.
+* `inflTimes::AbstractVector{Real}`: The times of the inflection points.
+
+##### Examples
+
+```julia
+    sampRate = 256; nTaps=64
+    rec, evtTab = simulateRecording(nChans=1, dur=4, sampRate=sampRate)
+    filterContinuous!(rec, sampRate, "lowpass", nTaps, [2], channels=[1], transitionWidth=0.2)
+    inflPnts, inflTimes = findInflections(rec[1,:], sampRate)
+    ## not run
+    ## using PlotlyJS
+    ## s1 = scatter(;x=collect(1:length(rec[1,:])), y=rec[1,:])
+    ## s2 = scatter(;x=inflPnts, y=rec[1,inflPnts], mode="markers")
+    ## plot([s1, s2])
+```
+"""
 function findInflections{T}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
     inflPnts = (Int)[]
     y = vec(y)
