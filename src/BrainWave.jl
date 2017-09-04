@@ -2,14 +2,15 @@ module BrainWave
 
 export averageAverages, averageEpochs, averageEpochsIterativeWeighted, baselineCorrect!,
 deleteSlice2D, deleteSlice3D, detrendEEG!, epochVariance, filterContinuous!, #_centered,
-fftconvolve, findArtefactThresh, findExtremum, findInflections, findABRPeaks, findPeaks, findTroughs, FMP, FMPIterativeWeighted, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2,
+fftconvolve, findArtefactThresh, findExtremum, findInflections, findPeaks, findTroughs, FMP, FMPIterativeWeighted, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2,
 getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
 iterativeWeightedAverage,
 meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
 segment, simulateRecording,
 toRawEEG, RawEEG,
-input, plotRawEEG
+input, plotRawEEG,
+findABRWaves, selectLargestPeakInWindow, selectLargestTroughInWindow, selectStrongestInflectionInWindow
 #filterContinuousParallel!
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
@@ -1641,7 +1642,6 @@ function getSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, 
     else
         nfft = n
     end
-
 
     p = fft(sig)#, nfft) # take the fourier transform
 
