@@ -10,7 +10,6 @@ removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
 segment, simulateRecording,
 toRawEEG, RawEEG,
 input, plotRawEEG,
-findABRWaves, selectLargestPeakInWindow, selectLargestTroughInWindow, selectStrongestInflectionInWindow
 #filterContinuousParallel!
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
