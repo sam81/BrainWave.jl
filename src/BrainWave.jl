@@ -9,7 +9,7 @@ meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
 segment, simulateRecording,
 toRawEEG, RawEEG,
-input, plotRawEEG,
+input, plotRawEEG
 #filterContinuousParallel!
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
