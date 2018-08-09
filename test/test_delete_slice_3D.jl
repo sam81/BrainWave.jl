@@ -1,4 +1,4 @@
-using BrainWave, Base.Test
+using BrainWave, Test
 
 x = reshape(collect(1:27), 3,3,3)
 @test isequal(deleteSlice3D(x, 2, 1), x[[1,3],:,:])

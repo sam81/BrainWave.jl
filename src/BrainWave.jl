@@ -15,7 +15,7 @@ input, plotRawEEG
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
 
-using DataFrames, Distributions, DSP, PyCall
+using DataFrames, Distributed, Distributions, DSP, PyCall
 using DistributedArrays
 #import Compat.String
 import PyPlot; const plt = PyPlot
@@ -61,7 +61,7 @@ $(SIGNATURES)
 ```
 
 """
-function averageAverages{T<:Real, P<:Integer}(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}})
+function averageAverages(aveList::Array{Dict{String, Array{T, 2}}}, nSegments::Array{Dict{String, P}}) where {T<:Real, P<:Integer}
     eventList = collect(keys(aveList[1]))
     weightedAve = Dict{String,Array{eltype(aveList[1][eventList[1]]),2}}() #(String => Array{eltype(aveList[1][eventList[1]]),2})[]
     nSegsSum = Dict{String,Int}()#(String => Int)[]
@@ -110,16 +110,15 @@ $(SIGNATURES)
 
 ##### averageEpochs{T<:Real}(rec::Array{T,3})
 """
-
-function averageEpochs{T<:Real}(rec::Array{T,3})
+function averageEpochs(rec::Array{T,3}) where {T<:Real}
 
     nSegs = size(rec)[3]
-    ave = squeeze(mean(rec, 3), 3)
+    ave = dropdims(mean(rec, dims=3), dims=3)
 
     return ave, nSegs
 end
 
-function averageEpochs{T<:Real}(rec::Dict{String,Array{T,3}})
+function averageEpochs(rec::Dict{String,Array{T,3}}) where {T<:Real}
 
 
     eventList = collect(keys(rec))
@@ -169,7 +168,7 @@ estimate.
 * Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
 
 """
-function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}; noiseEstimate::String="global")
+function averageEpochsIterativeWeighted(rec::Dict{String,Array{T,3}}; noiseEstimate::String="global") where {T<:Real}
     eventList = collect(keys(rec))
     ave = Dict{String,Array{eltype(rec[eventList[1]]),2}}()
     for i=1:length(eventList)
@@ -179,7 +178,7 @@ function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}; n
 end
 
 
-function averageEpochsIterativeWeighted{T<:Real}(rec::Dict{String,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::String="global")
+function averageEpochsIterativeWeighted(rec::Dict{String,Array{T,3}}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::String="global") where {T<:Real}
     eventList = collect(keys(rec))
     ave = Dict{String,Array{eltype(rec[eventList[1]]),2}}()
     for i=1:length(eventList)
@@ -218,7 +217,7 @@ $(SIGNATURES)
 ```
 
 """
-function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer)
+function baselineCorrect!(rec::Dict{String,Array{T,3}}, baselineStart::Real, preDur::Real, sampRate::Integer) where {T<:Real}
     eventList = collect(keys(rec))
     epochStartSample = round(Int, preDur*sampRate)
     baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
@@ -235,7 +234,7 @@ function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::
 
 end
 
-function baselineCorrect!{T<:Real}(rec::Dict{String,Array{T,3}}, baselineStart::Real, baselineEnd::Real, preDur::Real, sampRate::Integer)
+function baselineCorrect!(rec::Dict{String,Array{T,3}}, baselineStart::Real, baselineEnd::Real, preDur::Real, sampRate::Integer) where {T<:Real}
     eventList = collect(keys(rec))
     epochStartSample = round(Int, preDur*sampRate)
     baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
@@ -287,7 +286,7 @@ $(SIGNATURES)
 ```
 
 """
-function deleteSlice2D{T<:Any, P<:Integer}(x::AbstractMatrix{T}, toRemove::Union{P, AbstractVector{P}}, axis::Integer)
+function deleteSlice2D(x::AbstractMatrix{T}, toRemove::Union{P, AbstractVector{P}}, axis::Integer) where {T<:Any, P<:Integer}
     if in(axis, [1,2]) == false
         error("axis must be either 1 (rows), or 2 (columns)")
     end
@@ -333,7 +332,7 @@ $(SIGNATURES)
 ```
 
 """
-function deleteSlice3D{T<:Any, P<:Integer}(x::Array{T,3}, toRemove::Union{P, AbstractVector{P}}, axis::Integer)
+function deleteSlice3D(x::Array{T,3}, toRemove::Union{P, AbstractVector{P}}, axis::Integer) where {T<:Any, P<:Integer}
 
     if in(axis, [1,2,3]) == false
         error("axis must be either 1, 2, or 3")
@@ -375,7 +374,7 @@ $(SIGNATURES)
 ```
 
 """
-function detrendEEG!{T<:Real}(rec::AbstractMatrix{T})
+function detrendEEG!(rec::AbstractMatrix{T}) where {T<:Real}
 
     nChannels = size(rec)[1]
     for i=1:nChannels
@@ -387,7 +386,7 @@ end
 """
 $(SIGNATURES)
 """
-function epochVariance{T<:Real}(rec::Dict{String,Array{T,3}}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+function epochVariance(rec::Dict{String,Array{T,3}}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real) where {T<:Real}
     eventList = collect(keys(rec))
     epochVar = Dict{String, Real}()
     for i=1:length(eventList)
@@ -396,7 +395,7 @@ function epochVariance{T<:Real}(rec::Dict{String,Array{T,3}}, winStart::Real, wi
     return epochVar
 end
 
-function epochVariance{T<:Real}(sweeps::Array{T,3}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+function epochVariance(sweeps::Array{T,3}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real) where {T<:Real}
     nSweeps = size(sweeps)[3]
     nSamp = size(sweeps)[2]
     nChans = size(sweeps)[1]
@@ -471,13 +470,13 @@ $(SIGNATURES)
 ```
 
 """
-function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::AbstractMatrix{T},
-                                                         sampRate::Integer,
-                                                         filterType::String,
-                                                         nTaps::Integer,
-                                                         cutoffs::Union{P, AbstractVector{P}};
-                                                         channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
-                                                         transitionWidth::Real=0.2)
+function filterContinuous!(rec::AbstractMatrix{T},
+                           sampRate::Integer,
+                           filterType::String,
+                           nTaps::Integer,
+                           cutoffs::Union{P, AbstractVector{P}};
+                           channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+                           transitionWidth::Real=0.2) where {T<:Real, P<:Real, Q<:Integer}
     if filterType == "lowpass"
         f3 = cutoffs[1]
         f4 = cutoffs[1] * (1+transitionWidth)
@@ -526,13 +525,13 @@ end
 #####################################
 # `filterContinuous!` for SharedArray
 #####################################
-function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::SharedArray{T, 2},
-                                                         sampRate::Integer,
-                                                         filterType::String,
-                                                         nTaps::Integer,
-                                                         cutoffs::Union{P, AbstractVector{P}};
-                                                         channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
-                                                         transitionWidth::Real=0.2)
+function filterContinuous!(rec::SharedArray{T, 2},
+                           sampRate::Integer,
+                           filterType::String,
+                           nTaps::Integer,
+                           cutoffs::Union{P, AbstractVector{P}};
+                           channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+                           transitionWidth::Real=0.2) where {T<:Real, P<:Real, Q<:Integer}
     if filterType == "lowpass"
         f3 = cutoffs[1]
         f4 = cutoffs[1] * (1+transitionWidth)
@@ -567,7 +566,7 @@ function filterContinuous!{T<:Real, P<:Real, Q<:Integer}(rec::SharedArray{T, 2},
     ##     channels = [1:nChannels]
     ## end
 
-    @sync @parallel for i=1:nChannels
+    @sync @distributed for i=1:nChannels
         if in(i, channels) == true
             if VERSION < v"0.5-"
                 rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
@@ -585,14 +584,14 @@ end
 #################################
 # `filterContinuous!` for DArray
 #################################
-function filterContinuous!{T<:Real, P<:Real, Q<:Integer, W<:Integer}(rec::DArray{T},
-                                                         sampRate::Integer,
-                                                         filterType::String,
-                                                         nTaps::Integer,
-                                                         cutoffs::Union{P, AbstractVector{P}},
-                                                         workersToUse::AbstractVector{W};
-                                                         channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
-                                                         transitionWidth::Real=0.2)
+function filterContinuous!(rec::DArray{T},
+                           sampRate::Integer,
+                           filterType::String,
+                           nTaps::Integer,
+                           cutoffs::Union{P, AbstractVector{P}},
+                           workersToUse::AbstractVector{W};
+                           channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)),
+                           transitionWidth::Real=0.2) where {T<:Real, P<:Real, Q<:Integer, W<:Integer}
     if filterType == "lowpass"
         f3 = cutoffs[1]
         f4 = cutoffs[1] * (1+transitionWidth)
@@ -688,7 +687,7 @@ end
 ##     #return rec
 ## end
 
-    function doWorkFilterContinuousParallel!{T<:Real, S<:Real, Q<:Int}(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1)))
+    function doWorkFilterContinuousParallel!(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1))) where {T<:Real, S<:Real, Q<:Int}
     lIdx = collect(localindexes(rec)[1])
     nRows = length(lIdx)
     for i=1:nRows
@@ -742,7 +741,7 @@ $(SIGNATURES)
 ```
 
 """
-function fftconvolve{T<:Real, R<:Real}(x::AbstractVector{T}, y::AbstractVector{R}, mode::String)
+function fftconvolve(x::AbstractVector{T}, y::AbstractVector{R}, mode::String) where {T<:Real, R<:Real}
     s1 = size(x)[1]#check if array has two dim?
     s2 = size(y)[1]
     #println(typeof(x), typeof(y))
@@ -791,7 +790,7 @@ $(SIGNATURES)
     ## plot([s1, s2])
 ```
 """
-function findPeaks{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
+function findPeaks(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0) where {T<:Real}
     peakPnts = (Int)[] #peak points
     crPnts = (Int)[] #critical points
     
@@ -857,7 +856,7 @@ $(SIGNATURES)
     ## plot([s1, s2])
 ```
 """
-function findTroughs{T<:Real}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
+function findTroughs(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0) where {T<:Real}
     troughPnts = (Int)[]
     crPnts = (Int)[]
     
@@ -921,7 +920,7 @@ $(SIGNATURES)
     ## plot([s1, s2])
 ```
 """
-function findInflections{T}(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0)
+function findInflections(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Real; epochStart::Real=0) where {T<:Real}
     inflPnts = (Int)[]
     y = vec(y)
     dy = diff(y)
@@ -991,8 +990,8 @@ value, its length must match the number of channels to check.
 ```
 
 """
-function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Array{T, 3}}, thresh::Union{P, AbstractVector{P}},
-                                                          channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec[collect(keys(rec))[1]], 1)))
+function findArtefactThresh(rec::Dict{String, Array{T, 3}}, thresh::Union{P, AbstractVector{P}},
+                            channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec[collect(keys(rec))[1]], 1))) where {T<:Real, P<:Real, Q<:Integer}
 
     eventList = collect(keys(rec))
     ## if chans != nothing
@@ -1040,7 +1039,7 @@ function findArtefactThresh{T<:Real, P<:Real, Q<:Integer}(rec::Dict{String, Arra
 
 end
 
-function findArtefactThresh{T<:Real, P<:Real, R<:String, S<:String}(rec::Dict{String, Array{T, 3}}, thresh::Union{P, AbstractVector{P}}, chanLabels::AbstractVector{S}, chanList::AbstractVector{R})
+function findArtefactThresh(rec::Dict{String, Array{T, 3}}, thresh::Union{P, AbstractVector{P}}, chanLabels::AbstractVector{S}, chanList::AbstractVector{R}) where {T<:Real, P<:Real, R<:String, S<:String}
     channels = (Int)[]
     for i=1:length(chanLabels)
         push!(channels, find(chanList .== chanLabels[i])[1])
@@ -1099,7 +1098,7 @@ $(SIGNATURES)
 ```
 
 """
-function findExtremum{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real)
+function findExtremum(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, searchStart::Real, searchStop::Real, extremumSign::String, epochStart::Real, sampRate::Real) where {T<:Real}
 
     if ndims(wave) > 1
         if in(1, size(wave)) == false
@@ -1139,7 +1138,7 @@ $(SIGNATURES)
 * Elberling, C., & Don, M. (1984). Quality estimation of averaged auditory brainstem responses. Scandinavian Audiology, 13(3), 187–197.
 * Ozdamar, O., & Delgado, R. E. (1996). Measurement of signal and noise characteristics in ongoing auditory brainstem response averaging. Annals of Biomedical Engineering, 24(6), 702–715.
 """
-function FMP{T<:Real}(segs::Array{T,3}; at=-1)
+function FMP(segs::Array{T,3}; at=-1) where {T<:Real}
     if at == -1
         at = size(segs)[3]
     end
@@ -1159,12 +1158,12 @@ function FMP{T<:Real}(segs::Array{T,3}; at=-1)
         end
         FMPDen[:,i] = mean(tmpFMPDen,2) #Average the variance across samples.
     end
-    FMPVals = FMPNum./FMPDen
+    FMPVals = FMPNum ./ FMPDen
     return FMPVals, FMPNum, FMPDen
 
 end
 
-function FMP{T<:Real}(segs::Dict{String,Array{T,3}}; at=-1)
+function FMP(segs::Dict{String,Array{T,3}}; at=-1) where {T<:Real}
 
     eventList = collect(keys(segs))
     FMPVals = Dict{String,Array{Float64,2}}()
@@ -1182,7 +1181,7 @@ end
 """
 $(SIGNATURES)
 """
-function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate::String="global")
+function FMPIterativeWeighted(sweeps::Array{T,3}; at=-1, noiseEstimate::String="global") where {T<:Real}
     if at == -1
         at = size(sweeps)[3]
     end
@@ -1209,7 +1208,7 @@ function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate:
             noisePow = mean((sweeps[:,:,i] .- est_sig).^2)
             weighted_ave_num = weighted_ave_num .+ sweeps[:,:,i].* (1/noisePow)
 
-            sweepWeights[i] = 1./noisePow
+            sweepWeights[i] = 1 ./ noisePow
             weighted_ave_den = weighted_ave_den .+ (1/noisePow)
             weighted_ave = weighted_ave_num ./ weighted_ave_den
 
@@ -1237,7 +1236,7 @@ function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate:
             end
             for c=1:nChans
                 noisePow = mean((sweeps[c,:,i] .- est_sig[c,:]).^2)
-                sweepWeights[c, i] = 1./noisePow
+                sweepWeights[c, i] = 1 ./noisePow
                 weighted_ave_num[c,:] = weighted_ave_num[c,:] .+ sweeps[c,:,i].* (1/noisePow)
                 weighted_ave_den[c,:] = weighted_ave_den[c,:] .+ (1/noisePow)
             end
@@ -1257,12 +1256,12 @@ function FMPIterativeWeighted{T<:Real}(sweeps::Array{T,3}; at=-1, noiseEstimate:
 
         end
     end
-    FMPVals = FMPNum./FMPDen
+    FMPVals = FMPNum ./ FMPDen
     return FMPVals, FMPNum, FMPDen
 end
 
 
-function FMPIterativeWeighted{T<:Real}(segs::Dict{String,Array{T,3}}; at=-1, noiseEstimate::String="global")
+function FMPIterativeWeighted(segs::Dict{String,Array{T,3}}; at=-1, noiseEstimate::String="global") where {T<:Real}
 
     eventList = collect(keys(segs))
     FMPVals = Dict{String,Array{Float64,2}}()
@@ -1312,7 +1311,7 @@ $(SIGNATURES)
 ```
 
 """
-function getACF{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+function getACF(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect) where {T<:Real}
 ##     """
 ## n = length(sig)
 ## acfArray = zeros(n*2)
@@ -1328,7 +1327,7 @@ function getACF{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampR
 ## out[i] = sum(acfArray[1:n] .* acfArray[i:(n+i-1)])
 ## end
 
-## lags = [1:maxLagPnt]./sampRate
+## lags = [1:maxLagPnt] ./ sampRate
 
 ## if normalize == true
 ## out = out ./ maximum(out)
@@ -1353,7 +1352,7 @@ function getACF{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampR
     end
     out = xcorr(sig, sig)[n:n+maxLagPnt-1]
 
-    lags = collect(1:maxLagPnt)./sampRate
+    lags = collect(1:maxLagPnt) ./ sampRate
 
     if normalize == true
         out = out ./ maximum(out)
@@ -1362,7 +1361,7 @@ function getACF{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampR
 
 end
 
-function getACF2{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+function getACF2(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, maxLag::Real; normalize::Bool=true, window::Function=rect) where {T<:Real}
 
     if ndims(sig) > 1
         if in(1, size(sig)) == false
@@ -1389,7 +1388,7 @@ function getACF2{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, samp
     end
 
     out = out[1:maxLagPnt]
-    lags = [1:maxLagPnt]./sampRate
+    lags = [1:maxLagPnt] ./ sampRate
 
     if normalize == true
         out = out ./ maximum(out)
@@ -1427,7 +1426,7 @@ $(SIGNATURES)
 ```
 
 """
-function getAutocorrelogram{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+function getAutocorrelogram(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect) where {T<:Real}
     winLengthPnt = floor(Int, winLength * sampRate)
     stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
     ind = collect(1:stepSize:length(sig) - winLengthPnt)
@@ -1442,12 +1441,12 @@ function getAutocorrelogram{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatri
     end
 
     #timeInd = arange(0, len(sig), stepSize)
-    #timeArray = 1./sampRate * (timeInd)
+    #timeArray = 1 ./ sampRate * (timeInd)
     timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
     return acfMatrix, lags, timeArray3
 end
 
-function getAutocorrelogram2{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect)
+function getAutocorrelogram2(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real, maxLag::Real; normalize::Bool=true, window::Function=rect) where {T<:Real}
     winLengthPnt = floor(Int, winLength * sampRate)
     stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
     ind = collect(1:stepSize:length(sig) - winLengthPnt)
@@ -1464,7 +1463,7 @@ function getAutocorrelogram2{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatr
     end
 
     #timeInd = arange(0, len(sig), stepSize)
-    #timeArray = 1./sampRate * (timeInd)
+    #timeArray = 1 ./ sampRate * (timeInd)
     timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
     return acfMatrix, lags, timeArray3
 end
@@ -1495,14 +1494,14 @@ $(SIGNATURES)
 ```
 
 """
-function getSNR{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
+function getSNR(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer) where {T<:Real, R<:Real}
 
     sigIdx = find(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
     noiseMag = mean([loNoiseMag; hiNoiseMag])
-    snr = 10*log10(sigMag./noiseMag)
+    snr = 10*log10(sigMag ./ noiseMag)
     return snr
 end
 
@@ -1535,14 +1534,14 @@ $(SIGNATURES)
 ```
 
 """
-function getSNR2{T<:Real, R<:Real}(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer)
+function getSNR2(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer) where {T<:Real, R<:Real}
 
     sigIdx = find(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
     noiseMag = mean([loNoiseMag; hiNoiseMag])
-    snr = 10*log10(sigMag./noiseMag)
+    snr = 10*log10(sigMag ./ noiseMag)
     return snr, sigMag, noiseMag
 end
 
@@ -1578,7 +1577,7 @@ If the signal length is not a multiple of the window length it is trucated.
 ```
 
 """
-function getSpectrogram{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real; window::Function=rect, powerOfTwo::Bool=false)
+function getSpectrogram(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real, winLength::Real, overlap::Real; window::Function=rect, powerOfTwo::Bool=false) where {T<:Real}
     winLengthPnt = floor(Int, winLength * sampRate)
 
     stepSize = winLengthPnt - round(Int, winLengthPnt * overlap / 100)
@@ -1623,7 +1622,7 @@ $(SIGNATURES)
 ```
 
 """
-function getSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Integer; window::Function=rect, powerOfTwo::Bool=false)
+function getSpectrum(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Integer; window::Function=rect, powerOfTwo::Bool=false) where {T<:Real}
     if ndims(sig) > 1
         if in(1, size(sig)) == false
             error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
@@ -1691,7 +1690,7 @@ $(SIGNATURES)
 ```
 
 """
-function getPhaseSpectrum{T<:Real}(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real; window::Function=rect, powerOfTwo::Bool=false)
+function getPhaseSpectrum(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate::Real; window::Function=rect, powerOfTwo::Bool=false) where {T<:Real}
     if ndims(sig) > 1
         if in(1, size(sig)) == false
             error("Only 1-dimensional arrays, or 1xN dimensional arrays are allowed")
@@ -1756,7 +1755,7 @@ iterativeWeightedAverage(sweeps, 0, 0.2, 0.1, 1000, noiseEstimate="global")
 * Riedel, H., Granzow, M., & Kollmeier, B. (2001). Single-sweep-based methods to improve the quality of auditory brain stem responses Part II: Averaging methods. Z Audiol, 40(2), 62–85.
 
 """
-function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}; noiseEstimate::String="global")
+function iterativeWeightedAverage(sweeps::Array{T,3}; noiseEstimate::String="global") where {T<:Real}
 
     if in(noiseEstimate, ["global", "byChannel"]) == false
         error("`noiseEstimate` must be either `global`, or `byChannel`")
@@ -1801,7 +1800,7 @@ function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}; noiseEstimate::St
     return weighted_ave
 end
 
-function iterativeWeightedAverage{T<:Real}(sweeps::Array{T,3}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::String="global")
+function iterativeWeightedAverage(sweeps::Array{T,3}, noiseWinStart::Real, noiseWinStop::Real, preDur::Real, sampRate::Real; noiseEstimate::String="global") where {T<:Real}
     #noiseWinStart - time in seconds at which the noise estimate should start relative to the start of the epoch
     #noiseWinStop - time in seconds at which the noise estimate should stop relative to the start of the epoch
 
@@ -1913,7 +1912,7 @@ $(SIGNATURES)
     ```
 
 """
-function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::String, winLength::Real, sampRate::Real)
+function meanERPAmplitude(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::String, winLength::Real, sampRate::Real) where {T<:Real}
 
     if ndims(wave) > 1
         if in(1, size(wave)) == false
@@ -1936,7 +1935,7 @@ function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix
 end
 
 
-function meanERPAmplitude{T<:Real}(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::String, winLength::Real, sampRate::Real, epochStart::Real)
+function meanERPAmplitude(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, center::Real, centerType::String, winLength::Real, sampRate::Real, epochStart::Real) where {T<:Real}
     #centerType: point or time
 
     if ndims(wave) > 1
@@ -1980,7 +1979,7 @@ $(SIGNATURES)
     ```
 
 """
-function mergeEventTableCodes!{T<:Integer}(eventTable::Dict{String,Any}, trigList::AbstractVector{T}, newTrig::Integer)
+function mergeEventTableCodes!(eventTable::Dict{String,Any}, trigList::AbstractVector{T}, newTrig::Integer) where {T<:Integer}
     eventTable["code"][findin(eventTable["code"], trigList)] = newTrig
     return
 end
@@ -2032,7 +2031,7 @@ $(SIGNATURES)
 ```
 
 """
-function removeEpochs!{T<:Real, P<:Integer}(rec::Dict{String,Array{T,3}}, toRemove::Dict{String,Array{P,1}})
+function removeEpochs!(rec::Dict{String,Array{T,3}}, toRemove::Dict{String,Array{P,1}}) where {T<:Real, P<:Integer}
     eventList = collect(keys(rec))
     for i=1:length(eventList)
         code = eventList[i]
@@ -2157,7 +2156,7 @@ end
 """
 $(SIGNATURES)
 """
-function RMS{T<:Real}(ave::Array{T,2}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real)
+function RMS(ave::Array{T,2}, winStart::Real, winStop::Real, preDur::Real, sampRate::Real) where {T<:Real}
     nSamp = size(ave)[2]
     nChans = size(ave)[1]
 
@@ -2198,7 +2197,7 @@ $(SIGNATURES)
 ```
 
 """
-function rerefCnt!{T<:Real, P<:Integer}(rec::AbstractMatrix{T}, refChan::Integer; channels::Union{P, AbstractVector{P}}=collect(1:size(rec, 1)))
+function rerefCnt!(rec::AbstractMatrix{T}, refChan::Integer; channels::Union{P, AbstractVector{P}}=collect(1:size(rec, 1))) where {T<:Real, P<:Integer}
 
     for i=1:length(channels)
         if channels[i] != refChan
@@ -2249,13 +2248,12 @@ $(SIGNATURES)
 ```
 
 """
-
-function segment{T<:Real, P<:Integer, S<:String}(rec::AbstractMatrix{T},
-                                                 eventTable::Dict{String, Any},
-                                                 epochStart::Real, epochEnd::Real,
-                                                 sampRate::Integer;
-                                                 eventsList::AbstractVector{P}=unique(eventTable["code"]),
-                                                 eventsLabelsList::AbstractVector{S}=String[string(eventsList[i]) for i=1:length(eventsList)])
+function segment(rec::AbstractMatrix{T},
+                 eventTable::Dict{String, Any},
+                 epochStart::Real, epochEnd::Real,
+                 sampRate::Integer;
+                 eventsList::AbstractVector{P}=unique(eventTable["code"]),
+                 eventsLabelsList::AbstractVector{S}=String[string(eventsList[i]) for i=1:length(eventsList)]) where {T<:Real, P<:Integer, S<:String}
 
     trigs = eventTable["code"]
     trigs_pos = eventTable["idx"]
@@ -2328,7 +2326,6 @@ $(SIGNATURES)
 ```
 
 """
-
 function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
                            events=[1,2], epochDur::Real=0.5, preDur::Real=0.2,
                            minVolt::Real=-150, maxVolt::Real=150)
@@ -2337,7 +2334,7 @@ function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
         error("`dur` is too short")
     end
 
-    rec = rand(nChans, sampRate*dur)*(maxVolt-minVolt)+minVolt
+    rec = rand(nChans, sampRate*dur)*(maxVolt-minVolt) .+ minVolt
     startPoints = collect(ceil(Int, preDur*sampRate):(ceil(Int, preDur*sampRate)+ceil(Int, epochDur*sampRate)):(size(rec)[2]-round(Int, sampRate*1)))
     #nEvents = round(Int, dur/(epochDur+preDur)) - 3
     #nCodes = length(events)
@@ -2375,11 +2372,11 @@ function plotRawEEG(EEG::RawEEG; winDur::Real=8, startTime::Real=0, uVRange::Rea
     return badSegs
 end
 
-function plotRawEEG{T<:Real}(dats::AbstractMatrix{T}, sampRate::Real;
+function(dats::AbstractMatrix{T}, sampRate::Real;
                              winDur::Real=8, startTime::Real=0, uVRange::Real=200,
                              startChan::Int=1, nChansToPlot::Int=-1,
                              chanLabels=["" for i=1:size(dats[1])],
-                             lineWidth::Real=0.5)
+                             lineWidth::Real=0.5) where T <: Real
     badSegmentStart = (Real)[]
     badSegmentEnd = (Real)[]
     function doPlot()

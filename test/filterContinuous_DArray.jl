@@ -1,7 +1,7 @@
-using Base.Test
+using Distributed, Random, Test
 @everywhere using DistributedArrays
 @everywhere using BrainWave
-srand(1234)
+Random.seed!(1234)
 sampRate = 8192; nTaps=512
 nChans=8
 rec, evtTab = simulateRecording(nChans=nChans, dur=500, sampRate=sampRate)
