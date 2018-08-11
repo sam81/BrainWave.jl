@@ -6,4 +6,5 @@ DocStringExtensions
 DSP
 PyCall
 PyPlot
+SharedArrays
 julia 0.5

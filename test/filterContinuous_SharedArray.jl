@@ -1,4 +1,4 @@
-using Base.Test
+using Distributed, SharedArrays, Test
 @everywhere using BrainWave
 
 sampRate = 8192; nTaps=512

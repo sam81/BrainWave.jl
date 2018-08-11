@@ -16,14 +16,20 @@ input, plotRawEEG
 
 
 using DataFrames, Distributed, Distributions, DSP, PyCall
-using DistributedArrays
+using DistributedArrays, SharedArrays
 #import Compat.String
 import PyPlot; const plt = PyPlot
 using DocStringExtensions 
 
 #pyinitialize("python3")
 
-@pyimport scipy.signal as scisig
+#@pyimport scipy.signal as scisig
+const scisig = PyNULL()
+
+function __init__()
+    copy!(scisig, pyimport_conda("scipy.signal", "scipy"))
+end
+
 #include("findABRPeaks.jl")
 include("AbstractionLayer.jl")
 
@@ -504,17 +510,17 @@ function filterContinuous!(rec::AbstractMatrix{T},
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+    b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
     nChannels = size(rec)[1]
 
     for i=1:nChannels
         if in(i, channels) == true
             if VERSION < v"0.5-"
                 rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
-                rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:], 2)),1), b, "same"), 1)
+                rec[i,:] = reverse(fftconvolve(reverse(reshape(rec[i,:], size(rec[i,:], 2)), dims=1), b, "same"), dims=1)
             else
                 rec[i,:] = fftconvolve(rec[i,:], b, "same")
-                rec[i,:] = flipdim(fftconvolve(flipdim(rec[i,:],1), b, "same"), 1)
+                rec[i,:] = reverse(fftconvolve(reverse(rec[i,:], dims=1), b, "same"), dims=1)
             end
            
         end
@@ -559,7 +565,7 @@ function filterContinuous!(rec::SharedArray{T, 2},
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+    b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
     #b = ones(Float32,nTaps)
     nChannels = size(rec)[1]
     ## if channels == nothing
@@ -570,10 +576,10 @@ function filterContinuous!(rec::SharedArray{T, 2},
         if in(i, channels) == true
             if VERSION < v"0.5-"
                 rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
-                rec[i,:] = flipdim(fftconvolve(flipdim(reshape(rec[i,:], size(rec[i,:], 2)),1), b, "same"), 1)
+                rec[i,:] = reverse(fftconvolve(reverse(reshape(rec[i,:], size(rec[i,:], 2)), dims=1), b, "same"), dims=1)
             else
                 rec[i,:] = fftconvolve(rec[i,:], b, "same")
-                rec[i,:] = flipdim(fftconvolve(flipdim(rec[i,:],1), b, "same"), 1)
+                rec[i,:] = reverse(fftconvolve(reverse(rec[i,:], dims=1), b, "same"), dims=1)
             end
            
         end
@@ -619,7 +625,7 @@ function filterContinuous!(rec::DArray{T},
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+    b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
     nChannels = size(rec)[1]
 
     ## nProcsToUse = min(length(workers()), size(rec, 1))
@@ -668,7 +674,7 @@ end
 ##         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
 ##     end
 
-##     b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
+##     b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
 ##     #b = ones(Float32,nTaps)
 ##     nChannels = size(rec)[1]
 ##     ## if channels == nothing
@@ -694,10 +700,10 @@ end
         if in(lIdx[i], channels)
             if VERSION < v"0.5-"
                 localpart(rec)[i,:] = fftconvolve(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)), b, "same")
-                localpart(rec)[i,:] = flipdim(fftconvolve(flipdim(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)),1), b, "same"), 1)
+                localpart(rec)[i,:] = reverse(fftconvolve(reverse(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)), dims=1), b, "same"), dims=1)
             else
                 localpart(rec)[i,:] = fftconvolve(localpart(rec)[i,:], b, "same")
-                localpart(rec)[i,:] = flipdim(fftconvolve(flipdim(localpart(rec)[i,:],1), b, "same"), 1)
+                localpart(rec)[i,:] = reverse(fftconvolve(reverse(localpart(rec)[i,:], dims=1), b, "same"), dims=1)
             end
         end
     end
@@ -2385,7 +2391,7 @@ function(dats::AbstractMatrix{T}, sampRate::Real;
             startChan=nChans-(nChansToPlot-1)
         end
         startChan = min(max(1, startChan), nChans)
-        chansToPlot = flipdim(collect(startChan:startChan+nChansToPlot-1),1)
+        chansToPlot = reverse(collect(startChan:startChan+nChansToPlot-1), dims=1)
         #chansToPlot = chansToPlot[chansToPlot .<= nChans]
         nChansToPlot = length(chansToPlot)
         println(chansToPlot)
