@@ -694,7 +694,8 @@ end
 ## end
 
     function doWorkFilterContinuousParallel!(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1))) where {T<:Real, S<:Real, Q<:Int}
-    lIdx = collect(localindexes(rec)[1])
+        #lIdx = collect(localindexes(rec)[1])
+        lIdx = collect(DistributedArrays.localindices(rec)[1])
     nRows = length(lIdx)
     for i=1:nRows
         if in(lIdx[i], channels)
