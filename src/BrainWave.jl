@@ -15,7 +15,7 @@ input, plotRawEEG
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
 
-using DataFrames, Distributed, Distributions, DSP, PyCall
+using DataFrames, Distributed, Distributions, FFTW, DSP, PyCall
 using DistributedArrays, SharedArrays
 #import Compat.String
 import PyPlot; const plt = PyPlot
@@ -823,7 +823,7 @@ function findPeaks(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::Rea
     for i=1:length(peakPnts)
         peakTimes[i] = (peakPnts[i]-1)/sampRate
     end
-    peakTimes = peakTimes+epochStart
+    peakTimes = peakTimes .+ epochStart
     
     return peakPnts, peakTimes
 end
@@ -888,7 +888,7 @@ function findTroughs(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRate::R
     for i=1:length(troughPnts)
         troughTimes[i] = (troughPnts[i]-1)/sampRate
     end
-    troughTimes = troughTimes+epochStart
+    troughTimes = troughTimes .+ epochStart
 
     return troughPnts, troughTimes
 end
@@ -944,7 +944,7 @@ function findInflections(y::Union{AbstractMatrix{T}, AbstractVector{T}}, sampRat
     for i=1:length(inflPnts)
         inflTimes[i] = (inflPnts[i]-1)/sampRate
     end
-    inflTimes = inflTimes+epochStart
+    inflTimes = inflTimes .+ epochStart
     
     return inflPnts, inflTimes
 
@@ -1543,7 +1543,7 @@ $(SIGNATURES)
 """
 function getSNR2(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer) where {T<:Real, R<:Real}
 
-    sigIdx = find(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
+    sigIdx = findall(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
@@ -2120,7 +2120,8 @@ function removeSpuriousTriggers!(eventTable::Dict{String, Any}, sentTrigs::Array
     orig_len = length(recTrigs[(recTrigs .<maxTrig) .& (recTrigs .>minTrig)])
 
     allowedTrigs = round.(Int16, unique(sentTrigs))
-    allowedIdx = findin(recTrigs, allowedTrigs)
+    #allowedIdx = findin(recTrigs, allowedTrigs)
+    allowedIdx = findall((in)(allowedTrigs), recTrigs)
 
     recTrigsDur = recTrigsDur[allowedIdx]
     recTrigsStart = recTrigsStart[allowedIdx]
