@@ -19,6 +19,7 @@ addons:
   apt:
     packages:
       - python3-matplotlib
+      - python3-scipy
 env:
   matrix:
     - PYTHON=python3 # python 3.5
