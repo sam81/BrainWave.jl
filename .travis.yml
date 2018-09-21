@@ -15,8 +15,8 @@ matrix:
   allow_failures:
     - julia: nightly
 
-script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia -p 4 --check-bounds=yes -e 'using Pkg; Pkg.clone(pwd()); ENV["PYTHON"]=""; Pkg.build("PyCall"); using Conda; Conda.add("scipy"); Pkg.build("BrainWave"); Pkg.test("BrainWave"; coverage=true)'
-after_success:
-  - julia -e 'using Pkg; cd(Pkg.dir("BrainWave")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
+#script:
+#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#  - julia -p 4 --check-bounds=yes -e 'using Pkg; Pkg.clone(pwd()); ENV["PYTHON"]=""; Pkg.build("PyCall"); using Conda; Conda.add("scipy"); Pkg.build("BrainWave"); Pkg.test("BrainWave"; coverage=true)'
+#after_success:
+#  - julia -e 'using Pkg; cd(Pkg.dir("BrainWave")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
