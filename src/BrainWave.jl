@@ -449,7 +449,8 @@ $(SIGNATURES)
     filterContinuous!(rec, sampRate, "highpass", nTaps, [30], channels=[1,2,3,4], transitionWidth=0.2)
 
     #using the parallel processing version of the function with a SharedArray
-    @everywhere using BrainWave
+    using Distributed
+    @everywhere using BrainWave, SharedArrays
     rec, evtTab = simulateRecording(nChans=4, dur=120, sampRate=sampRate);
     #to exploit parallel processing you need to call julia with -p `n` parameter, or use addprocs(`n`)
     #where n is the number of processes you want to use
@@ -461,6 +462,7 @@ $(SIGNATURES)
     rec = convert(Array, sharedRec)
 
     #using the parallel processing version of the function with a DistributedArray
+    using Distributed
     @everywhere using BrainWave, DistributedArrays
     rec, evtTab = simulateRecording(nChans=4, dur=120, sampRate=sampRate);
     #to exploit parallel processing you need to call julia with -p `n` parameter, or use addprocs(`n`)
@@ -1076,9 +1078,9 @@ $(SIGNATURES)
     nSamp = round(Int, dur*sampRate)
     freq = 2
     phase = 1/4*(-pi)
-    tArr = collect(0:nSamp-1)/sampRate + epochStart
-    wave1 = sin(2*pi*freq*tArr+phase)
-    wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
+    tArr = collect(0:nSamp-1)/sampRate .+ epochStart
+    wave1 = sin.(2*pi*freq*tArr .+ phase)
+    wave1[1:round(Int, abs(epochStart)*sampRate)] .= 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
     #p = plot(tArr, wave1)
     #l1 = LineX(timePnt, color="red")
@@ -1101,16 +1103,16 @@ function findExtremum(wave::Union{AbstractVector{T}, AbstractMatrix{T}}, searchS
 
     searchWin = wave[searchStartPnt:searchStopPnt]
     if extremumSign == "positive"
-        extremumPntRel = find(searchWin .== maximum(searchWin))
+        extremumPntRel = findall(searchWin .== maximum(searchWin))
     elseif extremumSign == "negative"
-        extremumPntRel = find(searchWin .== minimum(searchWin))
+        extremumPntRel = findall(searchWin .== minimum(searchWin))
     end
 
     if length(extremumPntRel) > 1
         println("Warning: more than one extrema detected with the same amplitude. Selecting the first one...")
     end
 
-    tArr = collect(0:length(wave)-1)/sampRate + epochStart
+    tArr = collect(0:length(wave)-1)/sampRate .+ epochStart
     extremumPnt = extremumPntRel[1] + searchStartPnt-1
     #extremumTime = (extremumPnt / sampRate) + epochStart
     extremumTime = tArr[extremumPnt]
@@ -1294,7 +1296,7 @@ $(SIGNATURES)
     nSamp = round(Int, sampRate*dur)
     tArr = collect(0:nSamp-1)/sampRate
     freq = 440
-    sig = sin(2*pi*freq*tArr)
+    sig = sin.(2*pi*freq*tArr)
     maxLag = 1/200
     acf, lags = getACF(sig, sampRate, maxLag, normalize=true, window=hamming)
 ```
@@ -1431,7 +1433,8 @@ function getAutocorrelogram(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sa
 
     #timeInd = arange(0, len(sig), stepSize)
     #timeArray = 1 ./ sampRate * (timeInd)
-    timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    #timeArray3 = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    timeArray3 = range(0, stop=(ind[end]+winLengthPnt-1)/sampRate, length=n+1)
     return acfMatrix, lags, timeArray3
 end
 
@@ -1485,7 +1488,7 @@ $(SIGNATURES)
 """
 function getSNR(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, nExclude::Integer) where {T<:Real, R<:Real}
 
-    sigIdx = find(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
+    sigIdx = findall(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
     sigMag = spec[sigIdx]
     loNoiseMag = spec[sigIdx-nExclude-1-nSideComp+1:sigIdx-nExclude-1]
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
@@ -1580,7 +1583,8 @@ function getSpectrogram(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRa
         p, freqArray = getSpectrum(sig[ind[i]:ind[i]+winLengthPnt], sampRate, window=window, powerOfTwo=powerOfTwo)
         powerMatrix[:,i] = p
     end
-    timeArray = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    #timeArray = linspace(0, (ind[end]+winLengthPnt-1)/sampRate, n+1)
+    timeArray = range(0, stop=(ind[end]+winLengthPnt-1)/sampRate, length=n+1)
 
     return powerMatrix, freqArray, timeArray
 end
@@ -1703,7 +1707,7 @@ function getPhaseSpectrum(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, samp
     nUniquePts = ceil(Int, (nfft+1)/2)
     p = p[1:nUniquePts]
 
-    p = angle(p)
+    p = angle.(p)
     freqArray = collect(0:(nUniquePts-1)) * (sampRate / nfft)
 
     return p, freqArray
@@ -1889,9 +1893,9 @@ $(SIGNATURES)
     nSamp = round(Int, dur*sampRate)
     freq = 2
     phase = 1/4*(-pi)
-    tArr = collect(0:nSamp-1)/sampRate + epochStart
-    wave1 = sin(2*pi*freq*tArr+phase)
-    wave1[1:round(Int, abs(epochStart)*sampRate)] = 0
+    tArr = collect(0:nSamp-1)/sampRate .+ epochStart
+    wave1 = sin.(2*pi*freq*tArr .+ phase)
+    wave1[1:round(Int, abs(epochStart)*sampRate)] .= 0
     sampPnt, timePnt = findExtremum(wave1, P2SearchStart, P2SearchStop, "positive", epochStart, sampRate)
     #p = plot(tArr, wave1)
     #l1 = LineX(timePnt, color="red")
@@ -2076,7 +2080,7 @@ duration than legitimate triggers.
     evtTab["dur"] = [0.001 for i=1:15]
     res_info = removeSpuriousTriggers!(evtTab, sentTrigs, 0.0004, 192, 254)
     println(res_info)
-    assert(res_info["match"] == true)
+    @assert(res_info["match"] == true)
     #sometimes spurious triggers have the same code as legitimate ones
     #but they can still be found if they differ from legitimate
     #triggers in duration
@@ -2085,11 +2089,11 @@ duration than legitimate triggers.
     evtTab["code"] = [1,1,1,2,3,4,4,5,6,7,7,7,8,9,10] #with spurious triggers
     evtTab["idx"] = collect(1:500:500*15)
     evtTab["dur"] = [0.001 for i=1:15]
-    evtTab["dur"][[2,3,7,11,12]] = 0.0001 #spurious triggers have shorter duration
+    evtTab["dur"][[2,3,7,11,12]] .= 0.0001 #spurious triggers have shorter duration
 
     res_info = removeSpuriousTriggers!(evtTab, sentTrigs, 0.0004, 192, 254)
     println(res_info)
-    assert(res_info["match"] == true)
+    @assert(res_info["match"] == true)
 
 ```
 
