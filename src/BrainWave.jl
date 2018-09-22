@@ -515,18 +515,12 @@ function filterContinuous!(rec::AbstractMatrix{T},
 
     for i=1:nChannels
         if in(i, channels) == true
-            if VERSION < v"0.5-"
-                rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
-                rec[i,:] = reverse(fftconvolve(reverse(reshape(rec[i,:], size(rec[i,:], 2)), dims=1), b, "same"), dims=1)
-            else
-                rec[i,:] = fftconvolve(rec[i,:], b, "same")
-                rec[i,:] = reverse(fftconvolve(reverse(rec[i,:], dims=1), b, "same"), dims=1)
-            end
-           
-        end
+            rec[i,:] = fftconvolve(rec[i,:], b, "same")
+            rec[i,:] = reverse(fftconvolve(reverse(rec[i,:], dims=1), b, "same"), dims=1)
+        end        
     end
-    #return rec
 end
+
 
 #####################################
 # `filterContinuous!` for SharedArray
@@ -574,17 +568,10 @@ function filterContinuous!(rec::SharedArray{T, 2},
 
     @sync @distributed for i=1:nChannels
         if in(i, channels) == true
-            if VERSION < v"0.5-"
-                rec[i,:] = fftconvolve(reshape(rec[i,:], size(rec[i,:], 2)), b, "same")
-                rec[i,:] = reverse(fftconvolve(reverse(reshape(rec[i,:], size(rec[i,:], 2)), dims=1), b, "same"), dims=1)
-            else
-                rec[i,:] = fftconvolve(rec[i,:], b, "same")
-                rec[i,:] = reverse(fftconvolve(reverse(rec[i,:], dims=1), b, "same"), dims=1)
-            end
-           
+            rec[i,:] = fftconvolve(rec[i,:], b, "same")
+            rec[i,:] = reverse(fftconvolve(reverse(rec[i,:], dims=1), b, "same"), dims=1)
         end
     end
-    #return rec
 end
 
 #################################
@@ -693,19 +680,14 @@ end
 ##     #return rec
 ## end
 
-    function doWorkFilterContinuousParallel!(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1))) where {T<:Real, S<:Real, Q<:Int}
-        #lIdx = collect(localindexes(rec)[1])
-        lIdx = collect(DistributedArrays.localindices(rec)[1])
+function doWorkFilterContinuousParallel!(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1))) where {T<:Real, S<:Real, Q<:Int}
+    #lIdx = collect(localindexes(rec)[1])
+    lIdx = collect(DistributedArrays.localindices(rec)[1])
     nRows = length(lIdx)
     for i=1:nRows
         if in(lIdx[i], channels)
-            if VERSION < v"0.5-"
-                localpart(rec)[i,:] = fftconvolve(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)), b, "same")
-                localpart(rec)[i,:] = reverse(fftconvolve(reverse(reshape(localpart(rec)[i,:], size(localpart(rec)[i,:], 2)), dims=1), b, "same"), dims=1)
-            else
-                localpart(rec)[i,:] = fftconvolve(localpart(rec)[i,:], b, "same")
-                localpart(rec)[i,:] = reverse(fftconvolve(reverse(localpart(rec)[i,:], dims=1), b, "same"), dims=1)
-            end
+            localpart(rec)[i,:] = fftconvolve(localpart(rec)[i,:], b, "same")
+            localpart(rec)[i,:] = reverse(fftconvolve(reverse(localpart(rec)[i,:], dims=1), b, "same"), dims=1)
         end
     end
 end
