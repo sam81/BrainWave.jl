@@ -1,6 +1,7 @@
 using Distributed, Random, Test
 @everywhere using DistributedArrays
 @everywhere using BrainWave
+
 Random.seed!(1234)
 sampRate = 8192; nTaps=512
 nChans=8
