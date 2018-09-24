@@ -14,7 +14,6 @@ input, plotRawEEG
 
 #getNoiseSidebands, #chainSegments,#getFRatios,
 
-
 using DataFrames, Distributed, Distributions, FFTW, DSP, PyCall
 using DistributedArrays, SharedArrays
 #import Compat.String
@@ -1626,7 +1625,7 @@ function getSpectrum(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, sampRate:
     w = window(n)
     sig = sig.*w
     if powerOfTwo == true
-        nfft = nextpow2(n) #2^nextPowTwo(n)
+        nfft = nextpow(2, n) #2^nextPowTwo(n)
         if nfft != n #zero-pad
             sig = vcat(sig, zeros(eltype(sig), nfft-n))
         end
@@ -1694,7 +1693,7 @@ function getPhaseSpectrum(sig::Union{AbstractVector{T}, AbstractMatrix{T}}, samp
     w = window(n)
     sig = sig.*w
     if powerOfTwo == true
-        nfft = nextpow2(n) #2^nextPowTwo(n)
+        nfft = nextpow(2, n) #2^nextPowTwo(n)
         if nfft != n #zero-pad
             sig = vcat(sig, zeros(eltype(sig), nfft-n))
         end

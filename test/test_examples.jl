@@ -4,7 +4,7 @@ fToProcess = ["BrainWave.jl"]
 for fName in fToProcess
 #fName = fToProcess[1]
     fIn = open(string("../src/", fName), "r")
-    fOut = open(string("test_", fName), "w")
+    fOut = open(string("_run_examples_", fName), "w")
     lns = readlines(fIn)
     idxStart = (Int)[]
     idxStop = (Int)[]
@@ -25,7 +25,7 @@ for fName in fToProcess
 end
 
 for fName in fToProcess
-    fNameTest = string("test_", fName)
+    fNameTest = string("_run_examples_", fName)
     include(fNameTest)
 end
 
