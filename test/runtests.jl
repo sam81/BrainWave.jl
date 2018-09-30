@@ -1,5 +1,6 @@
 t1 = time_ns() #tic()
 
+include("test_baseline_correct.jl")
 include("test_workflow.jl")
 include("test_delete_slice_2D.jl")
 include("test_delete_slice_3D.jl")

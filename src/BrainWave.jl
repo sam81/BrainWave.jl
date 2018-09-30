@@ -2328,7 +2328,7 @@ function simulateRecording(;nChans::Int=16, dur::Real=120, sampRate::Real=256,
     end
 
     rec = rand(nChans, sampRate*dur)*(maxVolt-minVolt) .+ minVolt
-    startPoints = collect(ceil(Int, preDur*sampRate):(ceil(Int, preDur*sampRate)+ceil(Int, epochDur*sampRate)):(size(rec)[2]-round(Int, sampRate*1)))
+    startPoints = collect(ceil(Int, preDur*sampRate):(ceil(Int, preDur*sampRate)+ceil(Int, epochDur*sampRate)):(size(rec)[2]-round(Int, sampRate*1))) .+1
     #nEvents = round(Int, dur/(epochDur+preDur)) - 3
     #nCodes = length(events)
     #nEventsPerCode = floor(Int, nEvents/nCodes)
