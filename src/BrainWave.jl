@@ -240,11 +240,15 @@ function baselineCorrect!(rec::Dict{String,Array{T,3}}, baselineStart::Real, pre
 end
 
 function baselineCorrect!(rec::Dict{String,Array{T,3}}, baselineStart::Real, baselineEnd::Real, preDur::Real, sampRate::Integer) where {T<:Real}
+    if baselineStart >= baselineEnd
+        error("baselineEnd must be > baselineStart")
+    end
     eventList = collect(keys(rec))
     epochStartSample = round(Int, preDur*sampRate)
     baselineStartSample = round(Int, (epochStartSample+1) - abs(round(baselineStart*sampRate)))
+    #minor inconsistency here: if `baselineEnd` is 0, baselineEndSample will be epochStartSample+1,
+    #while with function above it will be epochStartSample
     baselineEndSample = round(Int, (epochStartSample+1) - abs(round(baselineEnd*sampRate)))
-
     for i=1:length(eventList) #for each event
         for j=1:size(rec[eventList[i]])[3] #for each epoch
             for k=1: size(rec[eventList[i]])[1] #for each electrode
