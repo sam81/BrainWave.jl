@@ -1,6 +1,6 @@
-using Documenter, BrainWave
+using Documenter, DocumenterMarkdown, BrainWave
 
-if ispath("buld/")
+if ispath("build/")
     rm("build/", recursive=true)
 end
 
@@ -9,5 +9,5 @@ if ispath("site/")
 end
 
 include("runWeave.jl") #convert weave file to markdown
-makedocs(modules = [BrainWave])
+makedocs(format = Markdown(), modules = [BrainWave], source="src", build="build")
 run(`mkdocs build`)

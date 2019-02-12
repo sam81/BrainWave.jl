@@ -2,8 +2,9 @@ module BrainWave
 
 export averageAverages, averageEpochs, averageEpochsIterativeWeighted, baselineCorrect!,
 deleteSlice2D, deleteSlice3D, detrendEEG!, epochVariance, filterContinuous!, #_centered,
-fftconvolve, findArtefactThresh, findExtremum, findInflections, findPeaks, findTroughs, FMP, FMPIterativeWeighted, getACF, getACF2, getAutocorrelogram, getAutocorrelogram2,
-getSNR, getSNR2, getPhaseSpectrum, getSpectrogram, getSpectrum,
+fftconvolve, findArtefactThresh, findExtremum, findInflections, findNSideComponents, findPeaks, findTroughs, FMP, FMPIterativeWeighted,
+getACF, getACF2, getAutocorrelogram, getAutocorrelogram2,
+getSNR, getSNR2, getSNR3, getPhaseSpectrum, getSpectrogram, getSpectrum,
 iterativeWeightedAverage,
 meanERPAmplitude, mergeEventTableCodes!, nextPowTwo,
 removeEpochs!, removeSpuriousTriggers!, rerefCnt!, RMS,
@@ -684,6 +685,66 @@ end
 
 ##     #return rec
 ## end
+
+"""
+Utility function to find the indexes of N frequency components adjacent to
+a signal, excluding certain frequency regions.
+
+$(SIGNATURES)
+
+##### Arguments
+
+* `sigIdx::Int`: the index of the signal frequency.
+* `freqArr::AbstractVector{Real}`: the frequency array.
+* `excludeFreqs`: the frequency regions to be excluded.
+* `side::String`: `low` for components lower than the signal, and `high` for components higher than the signal.
+
+##### Returns
+
+* `cmps::AbstractVector{Int}`: The N frequency components adjacent to to signal.
+
+##### Examples
+
+```julia
+
+fArr = collect(0:2:200) #frequency array
+sigIdx = 51
+excludeFreqs = [(100-4, 100+4), (120-4, 120+4)]
+findNSideComponents(sigIdx, fArr, nSideComp, excludeFreqs, "high")
+    
+```
+"""
+function findNSideComponents(sigIdx::Int, freqArr::AbstractVector{T}, nSideComp::Int, excludeFreqs, side::String="low") where {T<:Real}
+    nFound = 0
+    cmps = zeros(Int, nSideComp)
+    sat = false #condition satisfied
+    n = 1
+    nFreqs = length(freqArr)
+    while sat==false
+        currIdx = ifelse(side == "low", sigIdx - n, sigIdx+n)
+        if (currIdx < 1) | (currIdx>nFreqs)
+            error("Number of side component is too large, search goes beyond frequency array limits.")
+        end
+        currFreq = freqArr[currIdx]
+        flagExclude = false
+        for exf in excludeFreqs
+            if (currFreq >= exf[1]) & (currFreq <= exf[2])
+                flagExclude = true
+            end
+        end
+        if flagExclude == false
+            nFound = nFound+1
+            cmps[nFound] = currIdx
+        end
+        if nFound == nSideComp
+            sat = true
+        end
+        n = n+1
+    end
+
+    return cmps
+end
+
 
 function doWorkFilterContinuousParallel!(rec::AbstractMatrix{T}, b::AbstractVector{S}; channels::Union{Q, AbstractVector{Q}}=collect(1:size(rec,1))) where {T<:Real, S<:Real, Q<:Int}
     #lIdx = collect(localindexes(rec)[1])
@@ -1537,6 +1598,51 @@ function getSNR2(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::R
     hiNoiseMag = spec[sigIdx+nExclude+1:sigIdx+nExclude+1+nSideComp-1]
     noiseMag = mean([loNoiseMag; hiNoiseMag])
     snr = 10*log10(sigMag ./ noiseMag)
+    return snr, sigMag, noiseMag
+end
+
+"""
+Compute the signal-to-noise ratio at a given frequency in the power spectrum of a recording.
+This function is similar to `getSNR2`, but allows specifiyng several frequency regions to be excluded from the computation of the noise.
+
+$(SIGNATURES)
+
+##### Arguments
+
+* `spec::AbstractVector{Real}` The power spectrum of the recording.
+* `freqArr::AbstractVector{Real}`: the FFT frequency array.
+* `sigFreq::Real`: the signal frequency of interest.
+* `nSideComp::Integer`: the number of components adjacent to the signal used to estimate the noise.
+* `nExclude::Integer`: the number of components closest to the signal to exclude from the noise estimate.
+
+##### Returns
+
+* `snr::Real`: The signal-to-noise ratio at the target frequency.
+* `sigMag::Real`: The signal magnitude.
+* `noiseMag::Real`: The noise magnitude.
+
+##### Examples
+
+```julia
+    sig = rand(512)
+    p, f = getSpectrum(sig, 512)
+    snr, sigMag, noiseMag = getSNR2(p, f, 140, 10, 1)
+```
+
+"""
+function getSNR3(spec::AbstractVector{T}, freqArr::AbstractVector{R}, sigFreq::Real, nSideComp::Integer, excludeFreqs) where {T<:Real, R<:Real}
+
+    sigIdx = findall(abs.(freqArr .- sigFreq) .== minimum(abs.(freqArr .- sigFreq)))[1]
+    sigMag = spec[sigIdx]
+
+    noiseIdxLow = findNSideComponents(sigIdx, freqArr, nSideComp, excludeFreqs, "low")
+    noiseIdxHigh = findNSideComponents(sigIdx, freqArr, nSideComp, excludeFreqs, "high")
+
+    loNoiseMag = spec[noiseIdxLow]
+    hiNoiseMag = spec[noiseIdxHigh]
+    noiseMag = mean([loNoiseMag; hiNoiseMag])
+    snr = 10*log10(sigMag ./ noiseMag)
+    
     return snr, sigMag, noiseMag
 end
 
