@@ -516,7 +516,7 @@ function filterContinuous!(rec::AbstractMatrix{T},
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
+    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
     nChannels = size(rec)[1]
 
     for i=1:nChannels
@@ -565,7 +565,7 @@ function filterContinuous!(rec::SharedArray{T, 2},
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
+    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
     #b = ones(Float32,nTaps)
     nChannels = size(rec)[1]
     ## if channels == nothing
@@ -618,7 +618,7 @@ function filterContinuous!(rec::DArray{T},
         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
     end
 
-    b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
+    b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
     nChannels = size(rec)[1]
 
     ## nProcsToUse = min(length(workers()), size(rec, 1))
@@ -667,7 +667,7 @@ end
 ##         m = [0, 0.00003, 1, 1, 1, 0.00003, 0]
 ##     end
 
-##     b = convert(Array{eltype(rec),1}, scisig[:firwin2](nTaps,f,m))
+##     b = convert(Array{eltype(rec),1}, scisig.firwin2(nTaps,f,m))
 ##     #b = ones(Float32,nTaps)
 ##     nChannels = size(rec)[1]
 ##     ## if channels == nothing
@@ -710,6 +710,7 @@ $(SIGNATURES)
 fArr = collect(0:2:200) #frequency array
 sigIdx = 51
 excludeFreqs = [(100-4, 100+4), (120-4, 120+4)]
+nSideComp = 10
 findNSideComponents(sigIdx, fArr, nSideComp, excludeFreqs, "high")
     
 ```
@@ -1832,13 +1833,13 @@ $(SIGNATURES)
 * `sweeps`::Array{T,3}`: The matrix containing the segmented recording from which the
 average should be computed.
 * `noiseEstimate::String`: if `global` the estimate of the noise used to weight individual
-segments is derived from all the channels. If `byChannel` an noise estimate is derived for each
+segments is derived from all the channels. If `byChannel` a noise estimate is derived for each
 channel and segments are weighted differently for each channel depending on the channel noise
 estimate.
 * `noiseWinStart`::Real: Time in seconds at which the noise estimate should start relative to the start of the epoch.
 * `noiseWinStop`::Real: Time in seconds at which the noise estimate should stop relative to the start of the epoch.
 * `preDur::Real`: Duration of recording before the experimental event, in seconds.
-* `sampRate::Real`: The samplig rate of the EEG recording.
+* `sampRate::Real`: The sampling rate of the EEG recording.
 
 ##### Returns
 
