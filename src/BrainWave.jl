@@ -2520,7 +2520,7 @@ function(dats::AbstractMatrix{T}, sampRate::Real;
     doPlot()
     
     theEnd = false
-    println("Press:\n 'n' for next window \n 'p' for previous window \n 'x' to exit \n 'j' to jump to time \n 'w' to change window length \n 'r' to change aplitude range \n 'm' to mark bad segments")
+    println("Press:\n 'n' for next window \n 'p' for previous window \n 'x' to exit \n 'j' to jump to time \n 'w' to change window length \n 'r' to change amplitude range \n 'm' to mark bad segments")
     while theEnd == false
         inp = input()
         if inp == "x"
